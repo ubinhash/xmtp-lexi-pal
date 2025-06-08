@@ -13,6 +13,7 @@ interface XMTPContextType {
   setNetwork: (network: NetworkType) => void;
   sendMessage: (content: string) => Promise<void>;
   disconnect: () => void;
+  streamMessages: (callback: (message: any) => void) => Promise<void>;
 }
 
 const XMTPContext = createContext<XMTPContextType | null>(null);
@@ -39,11 +40,14 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsInitialized(false);
         return;
       }
+      
 
       try {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         console.log("initializing");
+
+
         
         // Create a signer that matches the XMTP browser SDK requirements
         const xmtpSigner = {
@@ -63,15 +67,17 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
           getChainId: () => {
             // Force chain ID to be 0 for XMTP
-            return Promise.resolve(BigInt(0));
+            // return Promise.resolve(chainId);
+            return Promise.resolve(BigInt(1));
           }
         };
         
         // Handle the Promise before creating the client
         const chainId = await provider.getNetwork().then(network => BigInt(network.chainId));
+       console.log("network chainId",chainId)
         const xmtp = await Client.create({
           ...xmtpSigner,
-          getChainId: () => chainId
+          getChainId: () => BigInt(1)
         }, {
           env: 'dev'
         });
@@ -92,19 +98,105 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!client) {
       throw new Error('XMTP client not initialized');
     }
+    if(!address){
+      throw new Error('Could not find my address');
+     }
+     
 
     try {
       const recipientAddress = ethers.utils.getAddress(XMTP_CONFIG.defaultRecipient);
-      const conversation = await client.conversations.newDm(recipientAddress);
-      console.log("new dm created")
-      await conversation.send(content);
-      console.log("content sent")
+      // const recipientAddress="0x9e680f3D7566464B3b3e63C9ad37dc2B9e5452e2"
+      const myIdentity = {
+        identifier: address,
+        identifierKind: 'Ethereum' as const
+      };
+      const recipientIdentity = {
+        identifier: recipientAddress,
+        identifierKind: 'Ethereum' as const
+      };
+      
+      const canMessageMap = await client.canMessage([recipientIdentity]);
+      console.log("Can message map:", canMessageMap); // Debug log
+      console.log("Map keys:", Array.from(canMessageMap.keys())); // Debug log to see all keys
+      console.log("Map entries:", Array.from(canMessageMap.entries())); // Debug log to see all entries
+      
+      // Try to get the value using the exact key from the map
+      const mapKey = Array.from(canMessageMap.keys())[0]; // Get the first key from the map
+      const canMessage = canMessageMap.get(mapKey);
+      console.log("Using key:", mapKey); // Debug log
+      console.log("Can message result:", canMessage); // Debug log
+      console.log("canMessage", canMessageMap,canMessage,recipientIdentity)
+       if (!canMessage) {
+        console.log("recipient is not reachable")
+         throw new Error('Recipient is not reachable on XMTP');
+       }
+
+     
+       const myInboxId = await client.findInboxIdByIdentifier(myIdentity);
+      if (!myInboxId) {
+        throw new Error('Could not find my inbox ID');
+      }
+       const recipientInboxId = await client.findInboxIdByIdentifier(recipientIdentity);
+      if (!recipientInboxId) {
+        throw new Error('Could not find recipient inbox ID');
+      }
+        console.log("recipientInboxId",recipientInboxId)
+    
+      // const conversation = await client.conversations.newGroup([myInboxId,recipientInboxId]);
+
+   
+      //const conversation = await client.conversations.newDm(recipientInboxId);
+      const conversation = await client.conversations.newDmWithIdentifier(recipientIdentity)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+
+      const all = await client.conversations.list();
+      console.log("all convo 0",all);
+
+      const dmlist = await client.conversations.listDms();
+      console.log("client info",client)
+      console.log("all convo",client.conversations)
+      console.log("dmlist",dmlist)
+      console.log("new dm created", content, conversation);
+      console.log("Conversation ID:", conversation.id);
+      console.log("Conversation members:", await conversation.members());
+    
+      const msgid = await conversation.send(content);
+      console.log("content sent", msgid);
     } catch (error) {
       if (error instanceof Error && error.message.includes('succeeded')) {
         console.log('Message sent successfully');
+        console.log(error);
         return;
       }
       console.error('Failed to send message:', error);
+      throw error;
+    }
+  };
+
+  const streamMessages = async (callback: (message: any) => void) => {
+    console.log("Starting message stream...");
+    if (!client) {
+      throw new Error('XMTP client not initialized');
+    }
+
+    try {
+      // First get existing conversations
+      const conversations = await client.conversations.list();
+      console.log("Found conversations:", conversations.length);
+
+      // Set up streaming for each conversation
+      for (const conversation of conversations) {
+        const stream = await conversation.streamMessages();
+        console.log("Streaming messages for conversation:", conversation.peerAddress);
+        
+        for await (const message of stream) {
+          console.log("Received message:", message);
+          callback(message);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to stream messages:', error);
       throw error;
     }
   };
@@ -117,7 +209,8 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
         network, 
         setNetwork, 
         sendMessage,
-        disconnect
+        disconnect,
+        streamMessages
       }}
     >
       {children}
