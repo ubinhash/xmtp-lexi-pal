@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { useXMTP } from '../contexts/XMTPContext';
 import { XMTP_CONFIG } from '../config/xmtp';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
@@ -8,13 +8,15 @@ import './Messaging.css';
 
 export const Messaging: React.FC = () => {
   const [message, setMessage] = useState('');
+  const [dmConversationId,setDmConversationId]=useState('')
   const { 
     client, 
     isInitialized, 
     network, 
     setNetwork, 
     sendMessage,
-    disconnect
+    disconnect,
+    findConversationWithAddress
   } = useXMTP();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,6 +30,30 @@ export const Messaging: React.FC = () => {
       console.error('Failed to send message:', error);
     }
   };
+
+  const testFindConversation = async () => {
+    try {
+
+      const conversation = await findConversationWithAddress();
+      console.log("Found conversation:", conversation);
+      
+      if (conversation) {
+        setDmConversationId(conversation)
+        console.log("Conversation ID Listing:", conversation);
+      } else {
+        console.log("No conversation found");
+      }
+    } catch (error) {
+      console.error("Error testing find conversation:", error);
+    }
+  };
+  
+  // You can call this in a useEffect or add a test button
+  useEffect(() => {
+    if (client) {
+      testFindConversation();
+    }
+  }, [client]);
 
   if (!isInitialized) {
     return (
@@ -62,7 +88,7 @@ export const Messaging: React.FC = () => {
           Disconnect
         </button>
       </div>
-
+     <div>Converstion ID: {dmConversationId}</div>
       <form onSubmit={handleSubmit} className="message-form">
         <div className="form-group">
           <label htmlFor="message" className="label">

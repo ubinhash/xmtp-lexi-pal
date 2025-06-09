@@ -7,90 +7,125 @@ interface Message {
   content: string;
   senderAddress: string;
   sent: Date;
+  conversationId: string;
 }
 
 export function MessageList() {
   const { client } = useXMTP();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!client) return;
 
-    let isStreamingActive = true; // Flag to control streaming
+    let isStreamingActive = true;
+    const messageStreams = new Set<AsyncGenerator<DecodedMessage>>();
 
     const setupMessageStream = async () => {
       try {
-        // First load existing messages
+        setError(null);
         const conversations = await client.conversations.list();
+        console.log("Found conversations:", conversations.length);
+        
         const allMessages: Message[] = [];
         
         for (const conversation of conversations) {
-          const conversationMessages = await conversation.messages();
-          allMessages.push(...conversationMessages.map(msg => ({
-            id: msg.id,
-            content: msg.content as string,
-            senderAddress: msg.senderAddress || '',
-            sent: msg.sent || new Date()
-          })));
-        }
-
-        // Sort messages by timestamp
-        allMessages.sort((a, b) => b.sent.getTime() - a.sent.getTime());
-        setMessages(allMessages);
-
-        // Keep listening for new conversations
-        while (isStreamingActive) {
           try {
-            setIsStreaming(true);
-            const stream = await client.conversations.stream();
-            console.log("Starting conversation stream...");
-            
-            for await (const conversation of stream) {
-              if (!isStreamingActive) break; // Check if we should stop streaming
+            const conversationMessages = await conversation.messages();
+            console.log(`Loaded ${conversationMessages.length} messages from conversation ${conversation.id}`);
+            const  currentTimeNs = BigInt(Date.now()) * BigInt(1000000);
+            allMessages.push(...conversationMessages.map(msg => ({
+              id: msg.id,
+              content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+              senderAddress: msg.senderInboxId|| '',
+              sent: msg.sentAtNs ? new Date(Number(msg.sentAtNs / BigInt(1000000))) : new Date() ,
+              conversationId: conversation.id
+            })));
+
+            if (isStreamingActive) {
+              const stream = await conversation.stream();
+              messageStreams.add(stream);
               
-              console.log("New conversation received:", conversation);
-              // Get messages from the new conversation
-              const conversationMessages = await conversation.messages();
-              const newMessages = conversationMessages.map(msg => ({
-                id: msg.id,
-                content: msg.content as string,
-                senderAddress: msg.senderAddress || '',
-                sent: msg.sent || new Date()
-              }));
-              
-              // Add new messages to the state
-              setMessages(prevMessages => {
-                const updatedMessages = [...newMessages, ...prevMessages];
-                // Sort by timestamp
-                return updatedMessages.sort((a, b) => b.sent.getTime() - a.sent.getTime());
-              });
+              (async () => {
+                try {
+                  for await (const message of stream) {
+                    if (!isStreamingActive) break;
+                    const  currentTimeNs = BigInt(Date.now()) * BigInt(1000000);
+                    
+                    console.log("New message received:", message);
+                    setMessages(prevMessages => {
+                      const newMessage = {
+                        id: message.id,
+                        content: typeof message.content === 'string' ? message.content : JSON.stringify(message.content),
+                        senderAddress: message?.senderInboxId || '',
+                        sent: message.sentAtNs ? new Date(Number(message.sentAtNs / BigInt(1000000))) : new Date(),
+                        conversationId: conversation.id
+                      };
+                      
+                      if (prevMessages.some(m => m.id === message.id)) {
+                        return prevMessages;
+                      }
+                      
+                      const updatedMessages = [newMessage, ...prevMessages];
+                      console.log("updated messsage")
+                      return updatedMessages.sort((a, b) => a.sent.getTime() - b.sent.getTime());
+                    });
+                  }
+                } catch (error) {
+                  console.error('Message stream error:', error);
+                  setError('Error streaming messages');
+                }
+              })();
             }
           } catch (error) {
-            console.error('Stream error:', error);
-            setIsStreaming(false);
-            // If there's an error, wait a bit before trying again
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            console.error(`Error loading messages for conversation ${conversation.id}:`, error);
           }
         }
+
+        allMessages.sort((a, b) => b.sent.getTime() - a.sent.getTime());
+        setMessages(allMessages);
+        setIsStreaming(true);
+
       } catch (error) {
         console.error('Failed to setup message stream:', error);
+        setError('Failed to load messages');
         setIsStreaming(false);
       }
     };
 
     setupMessageStream();
 
-    // Cleanup function
     return () => {
       isStreamingActive = false;
       setIsStreaming(false);
+      messageStreams.forEach(stream => {
+        try {
+          stream.return?.();
+        } catch (error) {
+          console.error('Error closing stream:', error);
+        }
+      });
+      messageStreams.clear();
     };
   }, [client]);
 
-  return (<div></div>);
   if (!client) {
     return <div className="p-4 text-gray-500">Connect your wallet to view messages</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 text-red-500">
+        {error}
+        <button 
+          onClick={() => window.location.reload()} 
+          className="ml-2 text-blue-500 hover:text-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -109,13 +144,15 @@ export function MessageList() {
           <div key={message.id} className="bg-white rounded-lg shadow p-4">
             <div className="flex justify-between items-start mb-2">
               <div className="text-sm font-medium text-gray-900">
-                {message.senderAddress.slice(0, 6)}...{message.senderAddress.slice(-4)}
+                {message.senderAddress.slice(0,4)}...{message.senderAddress.slice(-4)}
               </div>
               <div className="text-xs text-gray-500">
                 {message.sent.toLocaleString()}
               </div>
             </div>
-            <div className="text-gray-700">{message.content}</div>
+            <div className="text-gray-700 whitespace-pre-wrap break-words">
+              {message.content}
+            </div>
           </div>
         ))
       )}

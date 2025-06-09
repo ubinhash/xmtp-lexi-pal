@@ -14,6 +14,8 @@ interface XMTPContextType {
   sendMessage: (content: string) => Promise<void>;
   disconnect: () => void;
   streamMessages: (callback: (message: any) => void) => Promise<void>;
+  findConversationWithAddress: () => Promise<string | null>;
+
 }
 
 const XMTPContext = createContext<XMTPContextType | null>(null);
@@ -145,8 +147,8 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // const conversation = await client.conversations.newGroup([myInboxId,recipientInboxId]);
 
    
-      //const conversation = await client.conversations.newDm(recipientInboxId);
-      const conversation = await client.conversations.newDmWithIdentifier(recipientIdentity)
+      const conversation = await client.conversations.newDm(recipientInboxId);
+      // const conversation = await client.conversations.newDmWithIdentifier(recipientIdentity)
       await new Promise(resolve => setTimeout(resolve, 1000));
 
 
@@ -173,6 +175,44 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     }
   };
+
+  const findConversationWithAddress = async () => {
+    if (!client) {
+      throw new Error('XMTP client not initialized');
+    }
+    if(!address){
+      throw new Error('Could not find my address');
+     }
+  
+    try {
+      // Get all conversations
+      const conversations = await client.conversations.listDms();
+      console.log("Found conversations list:", conversations.length);
+      const recipientAddress = ethers.utils.getAddress(XMTP_CONFIG.defaultRecipient);
+  
+      // For each conversation, check its members
+      for (const conversation of conversations) {
+        const members = await conversation.members();
+        console.log("Finding Conversation members1:", members);
+        const memberAddresses = members.flatMap(member => 
+          member.accountIdentifiers.map(id => id.identifier.toLowerCase())
+        );
+        // console.log("Conversation members address1:", memberAddresses);
+        // Check if both addresses are in the members list
+        if (memberAddresses.includes(address.toLowerCase()) && memberAddresses.includes(recipientAddress.toLowerCase())) {
+          return conversation.id;
+        }
+      }
+  
+      console.log("No existing conversation found");
+      return null;
+    } catch (error) {
+      console.error('Error finding conversation:', error);
+      throw error;
+    }
+  };
+
+
 
   const streamMessages = async (callback: (message: any) => void) => {
     console.log("Starting message stream...");
@@ -210,7 +250,8 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setNetwork, 
         sendMessage,
         disconnect,
-        streamMessages
+        streamMessages,
+        findConversationWithAddress
       }}
     >
       {children}
