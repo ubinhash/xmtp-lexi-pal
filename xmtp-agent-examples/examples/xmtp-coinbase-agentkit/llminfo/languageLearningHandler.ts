@@ -1,0 +1,245 @@
+import { createPublicClient, http, encodeFunctionData, keccak256, encodePacked, LocalAccount } from "viem";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import { baseSepolia } from "viem/chains";
+import { CdpWalletProvider } from "@coinbase/agentkit";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+// Contract ABI for LanguageLearningGoal
+const languageLearningGoalAbi = [
+  {
+    inputs: [{ name: "user", type: "address" }],
+    name: "getActiveGoalId",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "user", type: "address" },
+      { name: "word", type: "string" },
+    ],
+    name: "getWordProgress",
+    outputs: [{ name: "", type: "uint8" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "targetVocab", type: "uint256" },
+      { name: "durationDays", type: "uint256" },
+      { name: "difficulty", type: "uint8" },
+    ],
+    name: "createGoal",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "claimStake",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "goalId", type: "uint256" },
+      { name: "word", type: "string" },
+      { name: "signature", type: "bytes" },
+    ],
+    name: "updateProgress",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+] as const;
+
+export class LanguageLearningHandler {
+  private publicClient;
+  private contractAddress: `0x${string}`;
+  private walletProvider: CdpWalletProvider;
+  private signerAccount: LocalAccount;
+
+  constructor(contractAddress: string, walletProvider: CdpWalletProvider) {
+    this.contractAddress = contractAddress as `0x${string}`;
+    this.publicClient = createPublicClient({
+      chain: baseSepolia,
+      transport: http(),
+    });
+    this.walletProvider = walletProvider;
+
+    // Initialize signer account from WALLET_KEY
+    if (!process.env.WALLET_KEY) {
+      throw new Error("WALLET_KEY environment variable is required");
+    }
+    this.signerAccount = privateKeyToAccount(process.env.WALLET_KEY as `0x${string}`);
+  }
+
+  /**
+   * Get the active goal ID for a user
+   */
+  async getActiveGoalId(address: string): Promise<bigint> {
+    return await this.publicClient.readContract({
+      address: this.contractAddress,
+      abi: languageLearningGoalAbi,
+      functionName: "getActiveGoalId",
+      args: [address as `0x${string}`],
+    });
+  }
+
+  /**
+   * Get the learning progress for a specific word
+   */
+  async getWordProgress(address: string, word: string): Promise<number> {
+    return await this.publicClient.readContract({
+      address: this.contractAddress,
+      abi: languageLearningGoalAbi,
+      functionName: "getWordProgress",
+      args: [address as `0x${string}`, word],
+    });
+  }
+
+  /**
+   * Create a new language learning goal
+   */
+  createGoalCalls(
+    fromAddress: string,
+    targetVocab: number,
+    durationDays: number,
+    difficulty: number,
+    stakeAmount: bigint,
+  ) {
+    return {
+      version: "1.0",
+      from: fromAddress as `0x${string}`,
+      chainId: "0x14a34", // Base Sepolia
+      calls: [
+        {
+          to: this.contractAddress,
+          data: encodeFunctionData({
+            abi: languageLearningGoalAbi,
+            functionName: "createGoal",
+            args: [BigInt(targetVocab), BigInt(durationDays), difficulty],
+          }),
+          value: stakeAmount,
+          metadata: {
+            description: `Create language learning goal: ${targetVocab} words in ${durationDays} days (Difficulty: ${difficulty})`,
+            transactionType: "createGoal",
+            targetVocab,
+            durationDays,
+            difficulty,
+            stakeAmount: stakeAmount.toString(),
+          },
+        },
+      ],
+    };
+  }
+
+  /**
+   * Create calls for claiming stake
+   */
+  createClaimStakeCalls(fromAddress: string) {
+    return {
+      version: "1.0",
+      from: fromAddress as `0x${string}`,
+      chainId: "0x14a34", // Base Sepolia
+      calls: [
+        {
+          to: this.contractAddress,
+          data: encodeFunctionData({
+            abi: languageLearningGoalAbi,
+            functionName: "claimStake",
+            args: [],
+          }),
+          metadata: {
+            description: "Claim stake from completed language learning goal",
+            transactionType: "claimStake",
+          },
+        },
+      ],
+    };
+  }
+
+  /**
+   * Update progress for a word using signature
+   * @returns Object containing transaction hash and new progress level
+   */
+  async updateProgress(fromAddress: string, word: string): Promise<{ txHash: `0x${string}`, newProgress: number }> {
+    const goalId = await this.getActiveGoalId(fromAddress);
+    if (goalId === 0n) {
+      throw new Error("No active goal found");
+    }
+
+    // Get current progress
+    const currentProgress = await this.getWordProgress(fromAddress, word);
+    const newProgress = currentProgress + 1;
+
+    // Create the message hash in the same format as the contract
+    const messageHash = keccak256(encodePacked(
+      ["uint256", "string"],
+      [goalId, word]
+    ));
+
+    // Sign the message locally
+    const signature = await this.signerAccount.signMessage({
+      message: { raw: messageHash },
+    });
+
+    // Execute the transaction with the signature
+    const txHash = await this.walletProvider.sendTransaction({
+      to: this.contractAddress,
+      data: encodeFunctionData({
+        abi: languageLearningGoalAbi,
+        functionName: "updateProgress",
+        args: [goalId, word, signature],
+      }),
+    });
+
+    return { txHash, newProgress };
+  }
+
+  /**
+   * Create calls for updating word progress
+   */
+  async createUpdateProgressCalls(fromAddress: string, word: string) {
+    const goalId = await this.getActiveGoalId(fromAddress);
+    if (goalId === 0n) {
+      throw new Error("No active goal found");
+    }
+
+    // Create the message hash in the same format as the contract
+    const messageHash = keccak256(encodePacked(
+      ["uint256", "string"],
+      [goalId, word]
+    ));
+
+    // Sign the message locally
+    const signature = await this.signerAccount.signMessage({
+      message: { raw: messageHash },
+    });
+
+    return {
+      version: "1.0",
+      from: fromAddress as `0x${string}`,
+      chainId: "0x14a34", // Base Sepolia
+      calls: [
+        {
+          to: this.contractAddress,
+          data: encodeFunctionData({
+            abi: languageLearningGoalAbi,
+            functionName: "updateProgress",
+            args: [goalId, word, signature],
+          }),
+          metadata: {
+            description: `Update progress for word "${word}"`,
+            transactionType: "updateProgress",
+            word,
+            goalId: goalId.toString(),
+          },
+        },
+      ],
+    };
+  }
+} 
