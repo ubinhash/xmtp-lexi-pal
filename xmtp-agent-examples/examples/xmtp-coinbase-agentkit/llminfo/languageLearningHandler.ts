@@ -54,7 +54,34 @@ const languageLearningGoalAbi = [
     stateMutability: "nonpayable",
     type: "function",
   },
+  {
+    inputs: [{ name: "goalId", type: "uint256" }],
+    name: "goals",
+    outputs: [
+      { name: "user", type: "address" },
+      { name: "targetVocab", type: "uint256" },
+      { name: "stake", type: "uint256" },
+      { name: "startTime", type: "uint256" },
+      { name: "deadline", type: "uint256" },
+      { name: "claimed", type: "bool" },
+      { name: "learnedCount", type: "uint256" },
+      { name: "difficulty", type: "uint8" }
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
+
+export interface GoalInfo {
+  user: `0x${string}`;
+  targetVocab: bigint;
+  stake: bigint;
+  startTime: bigint;
+  deadline: bigint;
+  claimed: boolean;
+  learnedCount: bigint;
+  difficulty: number;
+}
 
 export class LanguageLearningHandler {
   private publicClient;
@@ -240,6 +267,31 @@ export class LanguageLearningHandler {
           },
         },
       ],
+    };
+  }
+
+  /**
+   * Get information about a specific goal
+   * @param goalId The ID of the goal to get information for
+   * @returns Goal information including target vocabulary, duration, difficulty, etc.
+   */
+  async getGoalInfo(goalId: bigint): Promise<GoalInfo> {
+    const goalInfo = await this.publicClient.readContract({
+      address: this.contractAddress,
+      abi: languageLearningGoalAbi,
+      functionName: "goals",
+      args: [goalId],
+    });
+
+    return {
+      user: goalInfo[0],
+      targetVocab: goalInfo[1],
+      stake: goalInfo[2],
+      startTime: goalInfo[3],
+      deadline: goalInfo[4],
+      claimed: goalInfo[5],
+      learnedCount: goalInfo[6],
+      difficulty: Number(goalInfo[7]),
     };
   }
 } 

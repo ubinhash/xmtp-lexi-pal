@@ -31,6 +31,7 @@ import {
   type XmtpEnv,
 } from "@xmtp/node-sdk";
 import { LanguageLearningHandler } from "./llminfo/languageLearningHandler";
+import { ethers } from "ethers";
 
 const {
   WALLET_KEY,
@@ -469,6 +470,37 @@ async function handleMessage(message: DecodedMessage, client: Client) {
         return;
       }
       await handleProgressUpdate(conversation, handler, userAddress, word);
+      return;
+    }
+
+    if (content.startsWith("/goal")) {
+      try {
+        const goalId = await handler.getActiveGoalId(userAddress);
+        if (goalId === 0n) {
+          await conversation.send("You don't have an active goal. Use /create to start a new goal!");
+          return;
+        }
+
+        const goalInfo = await handler.getGoalInfo(goalId);
+        const startDate = new Date(Number(goalInfo.startTime) * 1000);
+        const endDate = new Date(Number(goalInfo.deadline) * 1000);
+        const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
+
+        const message = `📚 Goal ID: #${goalId}
+        🎯 Target: ${goalInfo.targetVocab} words
+        ⏱️ Duration: ${Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000))} days
+        📅 Started: ${startDate.toLocaleDateString()}
+        ⏳ Days left: ${daysLeft}
+        📊 Progress: ${goalInfo.learnedCount}/${goalInfo.targetVocab} words learned
+        💪 Difficulty: ${goalInfo.difficulty}/5
+        💰 Stake: ${ethers.formatEther(goalInfo.stake)} ETH
+        ${goalInfo.claimed ? '✅ Completed and claimed!' : '🚀 In progress...'}`;
+
+        await conversation.send(message);
+      } catch (error) {
+        console.error("Error getting goal info:", error);
+        await conversation.send("Sorry, I couldn't retrieve your goal information. Please try again later.");
+      }
       return;
     }
 

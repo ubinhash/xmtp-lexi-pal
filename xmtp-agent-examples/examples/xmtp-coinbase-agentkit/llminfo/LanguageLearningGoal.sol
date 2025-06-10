@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract LanguageLearningGoal {
@@ -120,10 +121,12 @@ contract LanguageLearningGoal {
     uint8 currentProgress = wordLearningProgress[g.user][word];
     require(currentProgress < VOCAB_LEARNED_THRESHOLD, "Word already mastered");
 
-    // Validate signature: keccak256(goalId, word)
-    bytes32 hash = keccak256(abi.encodePacked(goalId, word));
-    bytes32 ethSignedHash = hash.toEthSignedMessageHash();
-    address recovered = ethSignedHash.recover(signature);
+    // Validate signature
+    bytes32 messageHash = keccak256(abi.encodePacked(goalId, word));
+    bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(
+      messageHash
+    );
+    address recovered = ECDSA.recover(ethSignedMessageHash, signature);
     require(recovered == signerAddress, "Invalid signature");
 
     wordLearningProgress[g.user][word] = currentProgress + 1;
