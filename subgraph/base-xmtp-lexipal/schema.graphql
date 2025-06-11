@@ -48,3 +48,13 @@ type VocabMastered @entity(immutable: true) {
   blockTimestamp: BigInt!
   transactionHash: Bytes!
 }
+
+type LearnedWord @entity {
+  id: ID! # user + "-" + word
+  user: Bytes!
+  word: String!
+  goalId: BigInt!
+  progress: Int!
+  mastered: Boolean!
+  updatedAt: BigInt!
+}
