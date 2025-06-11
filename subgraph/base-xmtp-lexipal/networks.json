@@ -1,0 +1,8 @@
+{
+  "base-sepolia": {
+    "LanguageLearningGoal": {
+      "address": "0x0655266c179D0111398A3858904b62910567a5eB",
+      "startBlock": 26879481
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import { createPublicClient, http, encodeFunctionData, keccak256, encodePacked, LocalAccount } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
-import { baseSepolia } from "viem/chains";
+import { baseSepolia, base } from "viem/chains";
 import { CdpWalletProvider } from "@coinbase/agentkit";
 import dotenv from "dotenv";
 
@@ -88,14 +88,18 @@ export class LanguageLearningHandler {
   private contractAddress: `0x${string}`;
   private walletProvider: CdpWalletProvider;
   private signerAccount: LocalAccount;
+  private chainId: `0x${string}`;
+  private networkId: string;
 
-  constructor(contractAddress: string, walletProvider: CdpWalletProvider) {
+  constructor(contractAddress: string, walletProvider: CdpWalletProvider, chainId: `0x${string}`, networkId: string) {
     this.contractAddress = contractAddress as `0x${string}`;
     this.publicClient = createPublicClient({
-      chain: baseSepolia,
+      chain: networkId === "base-mainnet" ? base : baseSepolia,
       transport: http(),
     });
     this.walletProvider = walletProvider;
+    this.chainId = chainId;
+    this.networkId = networkId;
 
     // Initialize signer account from WALLET_KEY
     if (!process.env.WALLET_KEY) {
@@ -141,7 +145,7 @@ export class LanguageLearningHandler {
     return {
       version: "1.0",
       from: fromAddress as `0x${string}`,
-      chainId: "0x14a34", // Base Sepolia
+      chainId: this.chainId,
       calls: [
         {
           to: this.contractAddress,
@@ -171,7 +175,7 @@ export class LanguageLearningHandler {
     return {
       version: "1.0",
       from: fromAddress as `0x${string}`,
-      chainId: "0x14a34", // Base Sepolia
+      chainId: this.chainId,
       calls: [
         {
           to: this.contractAddress,
@@ -250,7 +254,7 @@ export class LanguageLearningHandler {
     return {
       version: "1.0",
       from: fromAddress as `0x${string}`,
-      chainId: "0x14a34", // Base Sepolia
+      chainId: this.chainId,
       calls: [
         {
           to: this.contractAddress,

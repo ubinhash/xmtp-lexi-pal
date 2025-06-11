@@ -1,0 +1,44 @@
+.footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    padding: 1rem 0;
+    background: rgb(244, 251, 255);
+    backdrop-filter: blur(8px);
+  }
+  
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+  
+  .content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    font-size: 0.875rem;
+  }
+  
+  .link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+  
+  .link:hover {
+    color: white;
+  }
+  
+  .separator {
+    color: #4b5563;
+  }
+  
+  .logo {
+    height: 20px;
+    width: auto;
+    object-fit: contain;
+  }

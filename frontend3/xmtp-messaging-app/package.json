@@ -10,9 +10,10 @@
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.6",
-    "@xmtp/browser-sdk": "^2.0.11",
+    "@xmtp/browser-sdk": "^2.1.1",
     "ethers": "^5.8.0",
     "next": "15.3.3",
+    "pino-pretty": "^13.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "viem": "^2.30.6",

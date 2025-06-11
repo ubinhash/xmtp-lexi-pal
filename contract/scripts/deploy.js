@@ -20,9 +20,13 @@ async function main() {
     console.log("Error verifying MockRewardPool:", error.message);
   }
 
+  // Get the signer address from environment variable or use deployer as signer
+  const signerAddress = process.env.SIGNER_ADDRESS || (await hre.ethers.getSigners())[0].address;
+  console.log("Using signer address:", signerAddress);
+
   // Deploy the LanguageLearningGoal contract
   const LanguageLearningGoal = await hre.ethers.getContractFactory("LanguageLearningGoal");
-  const languageLearningGoal = await LanguageLearningGoal.deploy(mockRewardPoolAddress);
+  const languageLearningGoal = await LanguageLearningGoal.deploy(mockRewardPoolAddress, signerAddress);
   await languageLearningGoal.waitForDeployment();
   const languageLearningGoalAddress = await languageLearningGoal.getAddress();
   console.log("LanguageLearningGoal deployed to:", languageLearningGoalAddress);
@@ -32,7 +36,7 @@ async function main() {
   try {
     await hre.run("verify:verify", {
       address: languageLearningGoalAddress,
-      constructorArguments: [mockRewardPoolAddress],
+      constructorArguments: [mockRewardPoolAddress, signerAddress],
     });
     console.log("LanguageLearningGoal verified successfully");
   } catch (error) {

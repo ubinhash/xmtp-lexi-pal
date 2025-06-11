@@ -1,0 +1,50 @@
+type GoalCreated @entity(immutable: true) {
+  id: Bytes!
+  user: Bytes! # address
+  goalId: BigInt! # uint256
+  targetVocab: BigInt! # uint256
+  deadline: BigInt! # uint256
+  difficulty: Int! # uint8
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type SignerUpdated @entity(immutable: true) {
+  id: Bytes!
+  newSigner: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type StakeClaimed @entity(immutable: true) {
+  id: Bytes!
+  user: Bytes! # address
+  goalId: BigInt! # uint256
+  amount: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type VocabLearned @entity(immutable: true) {
+  id: Bytes!
+  user: Bytes! # address
+  goalId: BigInt! # uint256
+  word: String! # string
+  progress: Int! # uint8
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type VocabMastered @entity(immutable: true) {
+  id: Bytes!
+  user: Bytes! # address
+  goalId: BigInt! # uint256
+  word: String! # string
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
