@@ -84,16 +84,16 @@ export const Messaging: React.FC = () => {
     }
   };
 
-  if (!isInitialized) {
-    return (
-      <div className={styles.container}>
-        <p className={styles.connectPrompt}>Please connect your wallet to start messaging</p>
-        <div className={styles.connectButtonContainer}>
-          <ConnectButton />
-        </div>
-      </div>
-    );
-  }
+  // if (!isInitialized) {
+  //   return (
+  //     <div className={styles.container}>
+  //       <p className={styles.connectPrompt}>Please connect your wallet to start messaging</p>
+  //       <div className={styles.connectButtonContainer}>
+  //         <ConnectButton />
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className={styles.container}>
@@ -119,7 +119,17 @@ export const Messaging: React.FC = () => {
       </div> */}
 
       <div className={styles.messageListContainer}>
-        <MessageList target_conversationId={dmConversationId} walletClient={walletClient} />
+        {isInitialized ? (
+          <MessageList target_conversationId={dmConversationId} walletClient={walletClient} />
+        ) : (
+          <div className={styles.messageContainer}>
+            <p className={styles.connectPrompt}>Please connect your wallet to start messaging</p>
+            <div className={styles.connectButtonContainer}>
+              <ConnectButton />
+            </div>
+        </div>
+
+        )}
       </div>
 
       <div className={styles.messageForm}>

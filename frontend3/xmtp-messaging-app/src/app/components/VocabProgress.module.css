@@ -3,16 +3,27 @@
   border-radius: 0.5rem;
   border: 1px solid #e5e7eb;
   padding: 1.25rem 1rem;
+  padding-top: 0;
   min-width: 220px;
   max-width: 300px;
   margin: 0 auto;
   height: 100%;
+  max-height: calc(min(600px, 100vh - 300px) + 75px);
+  overflow-y: scroll;
 }
 
 .header {
   font-weight: 600;
   font-size: 1.1rem;
   margin-bottom: 1rem;
+  padding-top: 1rem;
+  margin-top: 0;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 0.5rem;
 }
 
 .list {
@@ -76,9 +87,35 @@
 
 .highlightBox {
   display: inline-block;
-  width: 1rem;
-  height: 1rem;
+  width: 1.1rem;
+  height: 1.1rem;
   background-color: #f59e4294;
   border-radius: 2px;
   border: 1px solid #f59e42;
+}
+
+.refreshButton {
+  margin-left: 0.5rem;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1.1rem;
+  cursor: pointer;
+  border-radius: 50%;
+  padding: 0.2rem 0.4rem;
+  transition: background 0.15s;
+  vertical-align: middle;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.refreshButton:hover:not(:disabled) {
+  background: #f3f4f6;
+  color: #222;
+}
+
+.refreshButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 } 

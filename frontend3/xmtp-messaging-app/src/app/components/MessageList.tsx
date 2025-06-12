@@ -64,10 +64,11 @@ export function MessageList({ target_conversationId }: MessageListProps) {
       
       return (
         <div className={styles.walletSendCall}>
+           <p>Please review the transaction details below</p> 
           <div className={styles.walletSendCallInfo}>
-            <p><strong>From:</strong> {txData.from}</p>
-            <p><strong>Chain ID:</strong> {txData.chainId}</p>
-            <p><strong>Version:</strong> {txData.version}</p>
+            {/* <p><strong>From:</strong> {txData.from}</p>
+            <p><strong>Chain ID:</strong> {txData.chainId}</p> */}
+            
             <p><strong>Description:</strong> {txData.calls[0].metadata.description}</p>
           </div>
           <button
@@ -103,7 +104,7 @@ export function MessageList({ target_conversationId }: MessageListProps) {
       const hash = await walletClient.sendTransaction({
         to,
         data,
-        value: BigInt(value),
+        value: BigInt(value || 0),
       });
 
       console.log('Transaction submitted:', hash);

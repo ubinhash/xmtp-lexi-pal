@@ -18,8 +18,7 @@ function formatCountdown(deadline: string | number): string {
 export const GoalSummary: React.FC = () => {
   const { address } = useAccount();
 
-  // Get the active goal ID for the user
-  const { data: activeGoalId, isLoading: loadingId } = useContractRead({
+  const { data: activeGoalId, isLoading: loadingId, refetch: refetchActiveGoalId } = useContractRead({
     address: CONTRACT_ADDRESS,
     abi: GoalAbi,
     functionName: 'getActiveGoalId',
@@ -28,13 +27,17 @@ export const GoalSummary: React.FC = () => {
 
   const hasActiveGoal = activeGoalId && BigNumber.from(activeGoalId).gt(0);
 
-  // Fetch the goal struct if there is an active goal
-  const { data: goal, isLoading: loadingGoal } = useContractRead({
+  const { data: goal, isLoading: loadingGoal, refetch: refetchGoal } = useContractRead({
     address: CONTRACT_ADDRESS,
     abi: GoalAbi,
     functionName: 'goals',
     args: hasActiveGoal ? [activeGoalId] : undefined,
   });
+
+  const handleRefresh = () => {
+    refetchActiveGoalId();
+    refetchGoal();
+  };
 
   if (!address) {
     return <div className={styles.goalSummary}>Connect your wallet</div>;
@@ -58,10 +61,22 @@ export const GoalSummary: React.FC = () => {
 
   return (
     <div className={styles.goalSummary}>
+
+    
+
       <span className={styles.vocab}>Goal: {learnedCount}/{targetVocab} Learned</span>
       <span className={styles.days}> {deadline ? formatCountdown(deadline) : '-'}</span>
       <span className={styles.eth}>Stake: {stake} ETH</span>
       <span className={styles.eth}>Difficulty: {difficulty}</span>
+      <button
+          className={styles.refreshButton}
+          onClick={handleRefresh}
+          title="Refresh"
+          disabled={loadingId || (hasActiveGoal && loadingGoal)}
+        >
+          &#x21bb;
+        </button>
+      
     </div>
   );
 }; 
