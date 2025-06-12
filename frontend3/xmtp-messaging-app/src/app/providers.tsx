@@ -11,9 +11,10 @@ import { XMTPProvider } from './contexts/XMTPContext';
 const projectId = process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || 'a21097a4543245e9b56cb9ab5def9ce4';
 
 const config = createConfig({
-  chains: [base],
+  chains: [baseSepolia,base],
   transports: {
     [base.id]: http(),
+    [baseSepolia.id]: http(),
   },
 });
 

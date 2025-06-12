@@ -1,0 +1,149 @@
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f9fafb;
+}
+
+.networkSelector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background-color: white;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.select {
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid #e5e7eb;
+  background-color: white;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.disconnectButton {
+  margin-left: auto;
+  padding: 0.5rem 1rem;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.disconnectButton:hover {
+  background-color: #dc2626;
+}
+
+.messageForm {
+
+  background-color: white;
+  border-radius: 0.5rem;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+.messageForm {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  border-top: 1px solid #e0e0e0;
+  background-color: white;
+}
+
+.formGroup {
+  margin-bottom: 1rem;
+}
+
+.textarea {
+  flex: 1;
+  resize: none; /* Disable manual resizing */
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  line-height: 18px;
+  margin-right: 8px;
+  background-color: white;
+  outline: none;
+  min-height: 40px;
+  max-height: 40px;
+  overflow-y: auto;
+}
+
+.submitButton {
+  background-color: #4cb1d3;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  min-height: 38px;
+  max-height: 38px;
+  transition: background-color 0.2s ease;
+  font-family: inherit;
+}
+
+.submitButton:hover {
+  background-color: #389bbc;
+}
+
+.createDMButton {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.createDMButton:hover {
+  background-color: #059669;
+}
+
+.errorMessage {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 0.375rem;
+  color: #ef4444;
+  font-size: 0.875rem;
+}
+
+.connectPrompt {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+  font-size: 1rem;
+}

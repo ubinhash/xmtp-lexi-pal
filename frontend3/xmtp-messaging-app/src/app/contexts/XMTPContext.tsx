@@ -3,8 +3,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Client } from '@xmtp/browser-sdk';
 import { ethers } from 'ethers';
-import { useAccount, useDisconnect } from 'wagmi';
+import { useAccount, useDisconnect, useWalletClient } from 'wagmi';
 import { XMTP_CONFIG, NetworkType } from '../config/xmtp';
+
 
 interface XMTPContextType {
   client: Client | null;
@@ -15,7 +16,7 @@ interface XMTPContextType {
   disconnect: () => void;
   streamMessages: (callback: (message: any) => void) => Promise<void>;
   findConversationWithAddress: () => Promise<string | null>;
-
+  createDM: () => Promise<any>;
 }
 
 const XMTPContext = createContext<XMTPContextType | null>(null);
@@ -31,13 +32,14 @@ export const useXMTP = () => {
 export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [client, setClient] = useState<Client | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [network, setNetwork] = useState<NetworkType>('dev');
+  const [network, setNetwork] = useState<NetworkType>('production');
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
+  const { data: walletClient } = useWalletClient();
 
   useEffect(() => {
     const initClient = async () => {
-      if (!address || !isConnected) {
+      if (!address || !isConnected || !walletClient) {
         setClient(null);
         setIsInitialized(false);
         return;
@@ -45,8 +47,14 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
 
       try {
+        
         const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const signer = provider.getSigner();
+        const accounts = await provider.listAccounts();
+        console.log("Available accounts:", accounts);
+        // if (accounts.length === 0) {
+        //   throw new Error("No account connected — cannot initialize XMTP client.");
+        // }
+        // const signer = provider.getSigner();
         console.log("initializing");
 
 
@@ -60,7 +68,7 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }),
           signMessage: (message: Uint8Array) => {
             const messageString = Buffer.from(message).toString('utf-8');
-            return signer.signMessage(messageString)
+            return walletClient.signMessage({ message: messageString })
               .then(signature => {
                 // Remove '0x' prefix and ensure proper signature format
                 const cleanSignature = signature.startsWith('0x') ? signature.slice(2) : signature;
@@ -75,15 +83,16 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         
         // Handle the Promise before creating the client
+        
         const chainId = await provider.getNetwork().then(network => BigInt(network.chainId));
        console.log("network chainId",chainId)
         const xmtp = await Client.create({
           ...xmtpSigner,
           getChainId: () => BigInt(1)
         }, {
-          env: 'dev'
+          env: 'production'
         });
-        
+
         setClient(xmtp);
         setIsInitialized(true);
       } catch (error) {
@@ -93,8 +102,16 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    initClient();
-  }, [address, isConnected, network]);
+    if (address && isConnected && walletClient) {
+      initClient();
+    }
+
+    return () => {
+      if (client) {
+        client.close();
+      }
+    };
+  }, [address, isConnected, network, walletClient]);
 
   const sendMessage = async (content: string) => {
     if (!client) {
@@ -197,6 +214,8 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const memberAddresses = members.flatMap(member => 
           member.accountIdentifiers.map(id => id.identifier.toLowerCase())
         );
+
+      
         // console.log("Conversation members address1:", memberAddresses);
         // Check if both addresses are in the members list
         if (memberAddresses.includes(address.toLowerCase()) && memberAddresses.includes(recipientAddress.toLowerCase())) {
@@ -241,6 +260,36 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const disconnectXMTP = async () => {
+    if (client) {
+      try {
+        await client.close();
+        setClient(null);
+        setIsInitialized(false);
+      } catch (error) {
+        console.error('Error closing XMTP client:', error);
+      }
+    }
+    disconnect();
+
+  };
+  
+  const createDM = async (): Promise<any> => {
+    if (!client) {
+      throw new Error('XMTP client not initialized');
+    }
+
+    try {
+      const recipientAddress = ethers.utils.getAddress(XMTP_CONFIG.defaultRecipient);
+      const conversation = await client.conversations.newDm(recipientAddress);
+      console.log('Created new DM conversation:', conversation);
+      return conversation;
+    } catch (error) {
+      console.error('Error creating DM:', error);
+      throw error;
+    }
+  };
+
   return (
     <XMTPContext.Provider 
       value={{ 
@@ -249,9 +298,10 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
         network, 
         setNetwork, 
         sendMessage,
-        disconnect,
+        disconnect:disconnectXMTP,
         streamMessages,
-        findConversationWithAddress
+        findConversationWithAddress,
+        createDM
       }}
     >
       {children}

@@ -4,7 +4,10 @@ import React, { useState,useEffect } from 'react';
 import { useXMTP } from '../contexts/XMTPContext';
 import { XMTP_CONFIG } from '../config/xmtp';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import './Messaging.css';
+import { ethers } from 'ethers';
+import { MessageList } from './MessageList';
+import { useWalletClient } from 'wagmi';
+import styles from './Messaging.module.css';
 
 export const Messaging: React.FC = () => {
   const [message, setMessage] = useState('');
@@ -16,8 +19,11 @@ export const Messaging: React.FC = () => {
     setNetwork, 
     sendMessage,
     disconnect,
-    findConversationWithAddress
+    findConversationWithAddress,
+    createDM
   } = useXMTP();
+  const [error, setError] = useState<string | null>(null);
+  const walletClient = useWalletClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,14 +58,37 @@ export const Messaging: React.FC = () => {
   useEffect(() => {
     if (client) {
       testFindConversation();
+      // If no conversation is found, create a new DM
+      if (!dmConversationId) {
+        handleCreateDM();
+      }
     }
   }, [client]);
 
+  const handleCreateDM = async () => {
+    try {
+      setError(null);
+      const conversation = await createDM();
+      console.log('DM created successfully:', conversation);
+      // Handle successful creation
+    } catch (error) {
+      console.error('Error creating DM:', error);
+      setError(error instanceof Error ? error.message : 'Failed to create DM');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
   if (!isInitialized) {
     return (
-      <div className="message-container">
-        <p className="message-text">Please connect your wallet to start messaging</p>
-        <div className="connect-button-container">
+      <div className={styles.container}>
+        <p className={styles.connectPrompt}>Please connect your wallet to start messaging</p>
+        <div className={styles.connectButtonContainer}>
           <ConnectButton />
         </div>
       </div>
@@ -67,16 +96,16 @@ export const Messaging: React.FC = () => {
   }
 
   return (
-    <div className="message-container">
-      <div className="network-selector">
-        <label htmlFor="network" className="label">
+    <div className={styles.container}>
+      <div className={styles.networkSelector}>
+        <label htmlFor="network" className={styles.label}>
           Network
         </label>
         <select
           id="network"
           value={network}
           onChange={(e) => setNetwork(e.target.value as 'dev' | 'production')}
-          className="select"
+          className={styles.select}
         >
           {Object.entries(XMTP_CONFIG.networks).map(([key, value]) => (
             <option key={key} value={key}>
@@ -84,29 +113,40 @@ export const Messaging: React.FC = () => {
             </option>
           ))}
         </select>
-        <button onClick={disconnect} className="button disconnect">
+        <button onClick={disconnect} className={styles.disconnectButton}>
           Disconnect
         </button>
       </div>
-     <div>Converstion ID: {dmConversationId}</div>
-      <form onSubmit={handleSubmit} className="message-form">
-        <div className="form-group">
-          <label htmlFor="message" className="label">
-            Message
-          </label>
+
+      <div className={styles.messageListContainer}>
+        <MessageList target_conversationId={dmConversationId} walletClient={walletClient} />
+      </div>
+
+      <div className={styles.messageForm}>
           <textarea
             id="message"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            rows={4}
-            className="textarea"
+            onKeyDown={handleKeyDown}
+            className={styles.textarea}
             placeholder="Type your message here..."
           />
-        </div>
-        <button type="submit" className="button">
-          Send Message
+        <button type="submit" onClick={handleSubmit} className={styles.submitButton}>
+          Send
         </button>
-      </form>
+      </div>
+
+      {/* <button onClick={handleCreateDM} className={styles.createDMButton}>
+        Create DM
+      </button> */}
+
+      {error && (
+        <div className={styles.errorMessage}>
+          {error}
+        </div>
+      )}
+
+    
     </div>
   );
 }; 
