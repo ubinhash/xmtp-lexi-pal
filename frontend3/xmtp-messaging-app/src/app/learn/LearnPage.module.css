@@ -1,0 +1,53 @@
+.mainBg {
+    width: 100%;
+    min-height: calc(100vh - 100px); /* Optional: makes sure it fills the viewport */
+    display: flex;
+    justify-content: center;
+    align-items: center; /* Optional: vertically center the content */
+    flex-direction: column;
+  }
+  
+  .flexRow {
+    display: flex;
+    justify-content: center; /* center the row horizontally */
+    width: 60%; /* some max width, adjust as needed */
+    max-width: 1000px;
+    gap:10px;
+  }
+  
+  .rightColumn {
+    flex: 0 0 300px;
+    max-width: 300px;
+  }
+  
+  .leftColumn {
+    flex: 1 1 0;
+    min-width: 0;
+
+  }
+  .topRow {
+    height: 100px;
+    width: 60%;
+    max-width: 1000px;
+    margin: 0 auto 0px auto; 
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* Optional: background, border, etc. */
+    /* background: #fff; */
+    /* border-radius: 1rem; */
+    /* box-shadow: 0 1px 4px rgba(0,0,0,0.08); */
+    /* padding: 0 2rem; */
+  }
+
+@media (max-width: 900px) {
+  .flexRow {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .rightColumn {
+    max-width: 100%;
+    width: 100%;
+  }
+}
+

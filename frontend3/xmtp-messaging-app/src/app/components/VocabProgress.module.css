@@ -1,0 +1,84 @@
+.card {
+  background: #fff;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  padding: 1.25rem 1rem;
+  min-width: 220px;
+  max-width: 300px;
+  margin: 0 auto;
+  height: 100%;
+}
+
+.header {
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.listItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.listItem:last-child {
+  border-bottom: none;
+}
+
+.checkboxWrapper {
+  width: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkbox {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: #99d68d94;
+  border-radius: 0.25rem;
+
+}
+
+.highlightCheckbox {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: #f59e42;
+  border-radius: 0.25rem;
+  border: 2px solid #f59e42;
+}
+
+
+.text {
+  flex: 1;
+  font-size: 1rem;
+  color: #222;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.progress {
+  font-size: 0.95rem;
+  color: #6b7280;
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+
+.highlightBox {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  background-color: #f59e4294;
+  border-radius: 2px;
+  border: 1px solid #f59e42;
+} 

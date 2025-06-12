@@ -1,0 +1,23 @@
+.goalSummary {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 1rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.vocab {
+  color: #22c55e;
+}
+
+.days {
+  color: #222;
+}
+
+.eth {
+  color: #222;
+} 

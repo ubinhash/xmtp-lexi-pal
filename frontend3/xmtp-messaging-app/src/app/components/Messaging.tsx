@@ -97,7 +97,7 @@ export const Messaging: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.networkSelector}>
+      {/* <div className={styles.networkSelector}>
         <label htmlFor="network" className={styles.label}>
           Network
         </label>
@@ -116,7 +116,7 @@ export const Messaging: React.FC = () => {
         <button onClick={disconnect} className={styles.disconnectButton}>
           Disconnect
         </button>
-      </div>
+      </div> */}
 
       <div className={styles.messageListContainer}>
         <MessageList target_conversationId={dmConversationId} walletClient={walletClient} />
