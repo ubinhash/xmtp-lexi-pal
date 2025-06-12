@@ -83,6 +83,19 @@ export interface GoalInfo {
   difficulty: number;
 }
 
+interface VocabLearned {
+  word: string;
+  progress: number;
+  goalId: string;
+  blockTimestamp: number;
+}
+
+interface GraphQLResponse {
+  data: {
+    vocabLearneds: VocabLearned[];
+  };
+}
+
 export class LanguageLearningHandler {
   private publicClient;
   private contractAddress: `0x${string}`;
@@ -298,4 +311,48 @@ export class LanguageLearningHandler {
       difficulty: Number(goalInfo[7]),
     };
   }
+
+  async getVocabProgress(userAddress: string): Promise<VocabLearned[]> {
+    const query = `
+      {
+        vocabLearneds(
+          where: { user: "${userAddress}" }
+          orderBy: blockTimestamp
+          orderDirection: desc
+          first: 1000
+        ) {
+          word
+          progress
+          goalId
+          blockTimestamp
+        }
+      }
+    `;
+  
+    const response = await fetch('https://api.studio.thegraph.com/query/111655/base-xmtp-lexipal/version/latest', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query }),
+    });
+  
+    const data = await response.json() as GraphQLResponse;
+    if (!data?.data?.vocabLearneds) {
+      throw new Error('Invalid response format from GraphQL query');
+    }
+
+    // Filter out duplicate words, keeping only the latest progress
+    const uniqueWords = new Map<string, VocabLearned>();
+  
+    data.data.vocabLearneds.forEach((record) => {
+      if (!uniqueWords.has(record.word)) {
+        uniqueWords.set(record.word, record);
+      }
+    });
+  
+    return Array.from(uniqueWords.values());
+  }
+  
 } 
+

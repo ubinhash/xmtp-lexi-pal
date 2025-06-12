@@ -70,7 +70,7 @@ const WALLET_STORAGE_DIR = ".data/wallet";
 
 // Global stores for memory and agent instances
 const memoryStore: Record<string, MemorySaver> = {};
-const agentStore: Record<string, Agent> = {};
+const agentStore: Record<string, { agent: Agent; config: AgentConfig; walletProvider: CdpWalletProvider }> = {};
 const languageLearningHandlers: Record<string, LanguageLearningHandler> = {};
 
 interface AgentConfig {
@@ -323,7 +323,7 @@ async function initializeAgent(
       `,
     });
 
-    agentStore[userId] = agent;
+    agentStore[userId] = { agent, config: agentConfig, walletProvider };
 
     const exportedWallet = await walletProvider.exportWallet();
     const walletDataJson = JSON.stringify(exportedWallet);
@@ -519,7 +519,13 @@ async function handleMessage(message: DecodedMessage, client: Client) {
       `Received message from ${senderAddress}: ${message.content as string}`,
     );
 
-    const { agent, config, walletProvider } = await initializeAgent(senderAddress);
+    // Get or initialize agent
+    let agentData = agentStore[senderAddress];
+    if (!agentData) {
+      agentData = await initializeAgent(senderAddress);
+      agentStore[senderAddress] = agentData;
+    }
+    const { agent, config, walletProvider } = agentData;
     const handler = languageLearningHandlers[senderAddress];
 
     // Get the user's address from their inbox ID
@@ -765,7 +771,7 @@ async function handleMessage(message: DecodedMessage, client: Client) {
 
     if (content.startsWith("/goal")) {
       const parts = content.split(" ");
-      const isAISuggested = parts.length > 4 || (parts.length === 2 && !/^\d+$/.test(parts[1])); // Check if it's just "/create" or "/create" with text
+      const isAISuggested = parts.length > 5 || (parts.length === 2 && !/^\d+$/.test(parts[1])); // Check if it's just "/create" or "/create" with text
 
       if (isAISuggested) {
         // Get the description from the message
@@ -774,7 +780,7 @@ async function handleMessage(message: DecodedMessage, client: Client) {
           await conversation.send(
             "Please provide a goal description or parameters:\n" +
             "1. /goal <description> - I'll suggest parameters based on your goal\n" +
-            "2. /goal <target_vocab> <duration_days> <stake_in_eth> [difficulty] - Create goal with specific parameters"
+            "2. /goal <target_vocab_amount> <duration_days> <stake_in_eth> [difficulty] - Create goal with specific parameters"
           );
           return;
         }
@@ -827,7 +833,7 @@ async function handleMessage(message: DecodedMessage, client: Client) {
       
       if (!targetVocab || !durationDays || !stake) {
         await conversation.send(
-          "Please provide all required parameters: /goal <target_vocab> <duration_days> <stake_in_eth> [difficulty]\n" +
+          "Please provide all required parameters: /goal <target_vocab_amount> <duration_days> <stake_in_eth> [difficulty]\n" +
           "Or just describe your goal and I'll suggest parameters: /goal <description>"
         );
         return;
@@ -1015,10 +1021,26 @@ async function handleMessage(message: DecodedMessage, client: Client) {
  */
 async function startMessageListener(client: Client) {
   console.log("Starting message listener...");
-  const stream = await client.conversations.streamAllMessages();
-  for await (const message of stream) {
-    if (message) {
-      await handleMessage(message, client);
+  
+  while (true) {
+    try {
+      console.log("Syncing conversations...");
+      await client.conversations.sync();
+      const conversations = await client.conversations.list();
+      console.log("Conversation IDs:", conversations.map(conv => conv.id));
+
+      console.log("Starting new message stream...");
+      const stream = await client.conversations.streamAllMessages();
+      for await (const message of stream) {
+        console.log("new message detected");
+        if (message) {
+          await handleMessage(message, client);
+        }
+      }
+    } catch (error) {
+      console.error("Error in message listener:", error);
+      console.log("Attempting to reconnect in 5 seconds...");
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
   }
 }
