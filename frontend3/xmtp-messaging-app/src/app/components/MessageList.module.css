@@ -249,9 +249,35 @@
   .statusRight {
     font-size: 0.75rem;
     color: #6b7280;
-    max-width: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    width: 200px;
+    text-align: right;
+  }
+
+  .conversationId {
+    max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     text-align: right;
+    flex: 1;
+  }
+
+  .refreshButton {
+    margin-left: 0rem;
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 1.1rem;
+    cursor: pointer;
+    border-radius: 50%;
+    padding: 0.2rem 0.4rem;
+    transition: background 0.15s;
+    vertical-align: middle;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }

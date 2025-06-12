@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import styles from './VocabProgress.module.css';
 import { useAccount } from 'wagmi';
+import { VOCABULARY_WORDS } from './vocabulary';
 
 interface VocabLearned {
   word: string;
@@ -9,24 +10,15 @@ interface VocabLearned {
   blockTimestamp?: string;
 }
 
-const USER_ADDRESS = "0x48Dc4876472CbA3d91da6100a5B7fDeAAc062353";
+interface GoalCreated {
+  goalId: string;
+  targetVocab: string;
+  deadline: string;
+  difficulty: string;
+  blockTimestamp: string;
+}
 
-// Static vocab list
-const ALL_VOCAB: string[] = [
-  'ありがとう',
-  'さようなら',
-  'おやすみ',
-  'こんにちは',
-  'すみません',
-  'はい',
-  'いいえ',
-  'おはよう',
-  'こんばんは',
-  'いただきます',
-  'ごちそうさま',
-  'お願いします',
-  'ちんざくうし',
-];
+const USER_ADDRESS = "0x48Dc4876472CbA3d91da6100a5B7fDeAAc062353";
 
 export const VocabProgress: React.FC = () => {
   const { address } = useAccount();
@@ -34,6 +26,41 @@ export const VocabProgress: React.FC = () => {
   const [vocabList, setVocabList] = useState<VocabLearned[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [goalDifficulty, setGoalDifficulty] = useState<number>(5); // Default to 5
+
+  const fetchGoalDifficulty = useCallback(async () => {
+    if (!address) return;
+    
+    try {
+      const response = await fetch('https://api.studio.thegraph.com/query/111655/base-xmtp-lexipal/version/latest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `{
+            goalCreateds(where: { user: "${address}" }, orderBy: blockTimestamp, orderDirection: desc) {
+              goalId 
+              targetVocab 
+              deadline 
+              difficulty
+              blockTimestamp
+            }
+          }`
+        })
+      });
+      
+      const json = await response.json();
+      const goals: GoalCreated[] = json.data?.goalCreateds || [];
+      
+      // Use the most recent goal's difficulty, or default to 5
+      if (goals.length > 0) {
+        const difficulty = parseInt(goals[0].difficulty);
+        setGoalDifficulty(isNaN(difficulty) ? 5 : difficulty);
+      }
+    } catch (err) {
+      console.error('Failed to fetch goal difficulty:', err);
+      // Keep default difficulty
+    }
+  }, [address]);
 
   const fetchVocab = useCallback(async () => {
     if (!address) {
@@ -44,6 +71,9 @@ export const VocabProgress: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
+      // First, get the goal difficulty
+      await fetchGoalDifficulty();
+      
       const response = await fetch('https://api.studio.thegraph.com/query/111655/base-xmtp-lexipal/version/latest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -68,9 +98,23 @@ export const VocabProgress: React.FC = () => {
         }
       }
       const deduped = Array.from(latestMap.values());
-      // Add up to 5 vocab from ALL_VOCAB not already learned
+      
+      // Get vocabulary words from the imported VOCABULARY_WORDS
       const learnedWords = new Set(deduped.map(v => v.word));
-      const toAdd = ALL_VOCAB.filter(word => !learnedWords.has(word)).slice(0, 5).map(word => ({ word, progress: 0 }));
+      
+      // Filter by the current goal's difficulty level - only show words with difficulty <= goalDifficulty
+      const filteredVocab = VOCABULARY_WORDS.filter(word => word.difficulty == goalDifficulty);
+      
+      // Sort by difficulty to prioritize easier words
+      const sortedVocab = [...filteredVocab].sort((a, b) => a.difficulty - b.difficulty);
+      const allVocabWords = sortedVocab.map(v => v.word);
+      
+      // Add vocab from the sorted vocabulary list not already learned
+      const toAdd = allVocabWords
+        .filter(word => !learnedWords.has(word))
+        .slice(0, 15)
+        .map(word => ({ word, progress: 0 }));
+        
       let combined = [...deduped, ...toAdd];
       // Sort by progress (desc), then alphabetically
       combined.sort((a, b) => {
@@ -83,7 +127,7 @@ export const VocabProgress: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [address]);
+  }, [address, fetchGoalDifficulty, goalDifficulty]);
 
   useEffect(() => {
     fetchVocab();
@@ -92,7 +136,7 @@ export const VocabProgress: React.FC = () => {
   return (
     <div className={styles.card}>
       <div className={styles.header}>
-        <span>Vocab Progress</span>
+        <span>Vocab Progress (Level {goalDifficulty})</span>
         <button
           className={styles.refreshButton}
           onClick={fetchVocab}

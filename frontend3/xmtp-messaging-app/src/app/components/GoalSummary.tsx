@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 import { useAccount, useContractRead } from 'wagmi';
 import { BigNumber, utils as ethersUtils } from 'ethers';
@@ -48,7 +49,7 @@ export const GoalSummary: React.FC = () => {
   }
 
   if (!hasActiveGoal) {
-    return <div className={styles.goalSummary}>No Active Goal</div>;
+    return <div className={styles.goalSummary}>No Active Goal | If you are a new user, please reload after your first message</div>;
   }
 
   // goal struct: [user, targetVocab, stake, startTime, deadline, claimed, learnedCount, difficulty]

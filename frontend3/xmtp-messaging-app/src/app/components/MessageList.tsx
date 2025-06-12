@@ -29,6 +29,7 @@ export function MessageList({ target_conversationId }: MessageListProps) {
   const { data: walletClient } = useWalletClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -137,6 +138,8 @@ export function MessageList({ target_conversationId }: MessageListProps) {
     const setupMessageStream = async () => {
       try {
         setError(null);
+        await client.conversations.sync();
+        console.log("Synced conversations")
         const conversations = await client.conversations.list();
         console.log("Found conversations:", conversations.length);
         
@@ -188,6 +191,7 @@ export function MessageList({ target_conversationId }: MessageListProps) {
             }
 
             if (isStreamingActive) {
+              
               const stream = await conversation.stream();
               messageStreams.add(stream);
               
@@ -261,7 +265,12 @@ export function MessageList({ target_conversationId }: MessageListProps) {
       });
       messageStreams.clear();
     };
-  }, [client, target_conversationId]);
+  }, [client, target_conversationId, refreshKey]);
+
+  const handleSyncAndReload = () => {
+    setRefreshKey(k => k + 1);
+    window.location.reload();
+  };
 
   if (!client) {
     return <div className={styles.connectPrompt}>Connect your wallet to view messages</div>;
@@ -292,7 +301,11 @@ export function MessageList({ target_conversationId }: MessageListProps) {
 
   return (
     <div className={styles.messageContainer}>
+
+
+
       <div className={styles.statusIndicator}>
+   
         <div className={styles.statusLeft}>
         <div className={`${styles.statusDot} ${isStreaming ? styles.statusDotActive : styles.statusDotInactive}`}></div>
         <span className={styles.statusText}>
@@ -303,7 +316,15 @@ export function MessageList({ target_conversationId }: MessageListProps) {
           <span className={styles.conversationId}>
               ID: {target_conversationId}
             </span>
+            <button
+          className={styles.refreshButton}
+          onClick={handleSyncAndReload}
+          title="Refresh"
+        >
+          &#x21bb;
+        </button>
       </div>
+   
       </div>
       
       <div className={styles.messagesWrapper}>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Client } from '@xmtp/browser-sdk';
+import { Client,Identifier, Signer  } from '@xmtp/browser-sdk';
 import { ethers } from 'ethers';
 import { useAccount, useDisconnect, useWalletClient } from 'wagmi';
 import { XMTP_CONFIG, NetworkType } from '../config/xmtp';
@@ -60,35 +60,51 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         
         // Create a signer that matches the XMTP browser SDK requirements
-        const xmtpSigner = {
-          type: 'SCW' as const,
-          getIdentifier: () => ({
-            identifier: address,
-            identifierKind: 'Ethereum'
-          }),
-          signMessage: (message: Uint8Array) => {
-            const messageString = Buffer.from(message).toString('utf-8');
-            return walletClient.signMessage({ message: messageString })
-              .then(signature => {
-                // Remove '0x' prefix and ensure proper signature format
-                const cleanSignature = signature.startsWith('0x') ? signature.slice(2) : signature;
-                return Buffer.from(cleanSignature, 'hex');
-              });
-          },
-          getChainId: () => {
-            // Force chain ID to be 0 for XMTP
-            // return Promise.resolve(chainId);
-            return Promise.resolve(BigInt(1));
-          }
-        };
+        // const xmtpSigner = {
+        //   type: 'SCW' as const,
+        //   getIdentifier: () => ({
+        //     identifier: address,
+        //     identifierKind: 'Ethereum'
+        //   }),
+        //   signMessage: (message: Uint8Array) => {
+        //     const messageString = Buffer.from(message).toString('utf-8');
+        //     return walletClient.signMessage({ message: messageString })
+        //       .then(signature => {
+        //         // Remove '0x' prefix and ensure proper signature format
+        //         const cleanSignature = signature.startsWith('0x') ? signature.slice(2) : signature;
+        //         return Buffer.from(cleanSignature, 'hex');
+        //       });
+        //   },
+        //   getChainId: () => {
+        //     // Force chain ID to be 0 for XMTP
+        //     // return Promise.resolve(chainId);
+        //     return Promise.resolve(BigInt(1));
+        //   }
+        // };
         
         // Handle the Promise before creating the client
         
         const chainId = await provider.getNetwork().then(network => BigInt(network.chainId));
-       console.log("network chainId",chainId)
+        const xmtpSigner2: Signer = {
+          type: "EOA",
+          getIdentifier: () => ({
+            identifier: address,
+            identifierKind: 'Ethereum'
+          }),
+          signMessage: async (message: Uint8Array | string): Promise<Uint8Array> => {
+            if (typeof message !== "string") {
+              message = new TextDecoder().decode(message);
+            }
+        
+            const signature = await walletClient.signMessage({ message: message });
+        
+            // Convert hex string to Uint8Array
+            return Uint8Array.from(Buffer.from(signature!.slice(2), 'hex'));
+          },
+        };
+
         const xmtp = await Client.create({
-          ...xmtpSigner,
-          getChainId: () => BigInt(1)
+          ...xmtpSigner2,
         }, {
           env: 'production'
         });
@@ -123,10 +139,11 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
      
 
     try {
+      const normalizedAddress = ethers.utils.getAddress(address);
       const recipientAddress = ethers.utils.getAddress(XMTP_CONFIG.defaultRecipient);
       // const recipientAddress="0x9e680f3D7566464B3b3e63C9ad37dc2B9e5452e2"
       const myIdentity = {
-        identifier: address,
+        identifier: normalizedAddress,
         identifierKind: 'Ethereum' as const
       };
       const recipientIdentity = {
