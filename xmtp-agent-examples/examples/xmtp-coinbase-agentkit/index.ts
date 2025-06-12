@@ -38,8 +38,11 @@ import {
   type WalletSendCallsParams 
 } from "@xmtp/content-type-wallet-send-calls";
 import { TransactionReferenceCodec } from "@xmtp/content-type-transaction-reference";
-import { toHex } from "viem";
+import { parseEther, toHex } from "viem";
 import { encodeFunctionData } from "viem";
+import { createPublicClient, http } from "viem";
+import { base, baseSepolia } from "viem/chains";
+import { VOCABULARY_WORDS, type VocabularyWord } from "./vocabulary";
 
 const {
   WALLET_KEY,
@@ -78,26 +81,13 @@ interface AgentConfig {
 
 type Agent = ReturnType<typeof createReactAgent>;
 
-// Sample vocabulary words for testing (we'll replace this with a file later)
-const VOCABULARY_WORDS = [
-  { word: "hello", meaning: "a greeting" },
-  { word: "world", meaning: "the earth and all life upon it" },
-  { word: "learn", meaning: "to gain knowledge or skill" },
-  { word: "language", meaning: "a system of communication" },
-  { word: "practice", meaning: "to do something repeatedly to improve" },
-  { word: "knowledge", meaning: "facts, information, and skills acquired by a person through experience or education" },
-  { word: "assistant", meaning: "a person who helps in a particular job" },
-  { word: "conversation", meaning: "a talk between two or more people in which thoughts, feelings, and ideas are expressed" },
-  { word: "innovate", meaning: "to make changes in something established, especially by introducing new methods, ideas, or products" },
-  { word: "embrace", meaning: "to accept or support (a cause, policy, or idea) enthusiastically and willingly" },
-];
-
 // Store quiz state for each user
 interface QuizState {
   currentWord: string;
   attempts: number;
   correctAnswers: number;
   multipleChoiceQuiz?: MultipleChoiceQuiz;
+  start: boolean; // Tracks if user is in quiz mode
 }
 
 const quizStates: Record<string, QuizState> = {};
@@ -110,6 +100,7 @@ interface QuizEvaluation {
 }
 
 const MASTERED_THRESHOLD = 3; // Define the mastered threshold
+const FUNDING_THRESHOLD = 0.0005; // Define the minimum balance threshold in ETH
 
 interface MultipleChoiceQuiz {
   word: string;
@@ -192,6 +183,22 @@ function getWalletData(userId: string): string | null {
   }
   return null;
 }
+
+/**
+ * Check wallet balance
+ * @param address - The wallet address to check
+ * @returns The balance in ETH as a string
+ */
+async function checkWalletBalance(address: string): Promise<string> {
+  const publicClient = createPublicClient({
+    chain: currentNetwork.networkId === "base-mainnet" ? base : baseSepolia,
+    transport: http(),
+  });
+
+  const balance = await publicClient.getBalance({ address: address as `0x${string}` });
+  return ethers.formatEther(balance);
+}
+
 /**
  * Initialize the XMTP client.
  *
@@ -228,7 +235,7 @@ async function initializeXmtpClient() {
  */
 async function initializeAgent(
   userId: string,
-): Promise<{ agent: Agent; config: AgentConfig }> {
+): Promise<{ agent: Agent; config: AgentConfig; walletProvider: CdpWalletProvider }> {
   try {
     console.log("OpenAI API Key:", process.env.OPENAI_API_KEY);
     console.log("CDP API KEY NAME:", CDP_API_KEY_NAME);
@@ -296,10 +303,13 @@ async function initializeAgent(
         You can interact with the blockchain using Coinbase Developer Platform AgentKit.
 
         When a user interacts with you:
-        1. You can check their current learning progress
+        1. Remind user to create a goal first using the /goal command, they can either specify the number of words to learn, duration, stake, and difficulty, or just describe their goal following the format /goal <description> and you will suggest parameters based on their goal.
         2. You can help them learn new words through interactive quizzes
-        3. You can track their progress on specific words
+        3. Behave like a friend,not a teacher and make encouragments.
         4. You can encourage them to complete their goals
+        5. Request user to fund the bot wallet before learning if the user's balance is less than 0.0001 ETH, ask them to use /botfund command
+        6. If user want to check their goal progress, tell them to use /checkgoal command
+        7. If the user wonder what command they can use, tell them about the /checkgoal command for checking goal, /quiz command for quiz, /progress command for checking progress, /learn command for learning new words, /botfund command for funding the bot wallet, /goal command for creating a new goal.
 
         IMPORTANT:
         - Users need to have an active goal to start learning words
@@ -307,6 +317,7 @@ async function initializeAgent(
         - You can help them learn words by asking them to define them
         - You can check their progress on specific words
         - You can encourage them to keep learning and practicing
+        - If user request to fund the bot wallet, you transfer your own wallet balance to their wallet given
 
         Be encouraging and helpful in all your interactions. Focus on helping users learn and master new words.
       `,
@@ -318,7 +329,7 @@ async function initializeAgent(
     const walletDataJson = JSON.stringify(exportedWallet);
     saveWalletData(userId, walletDataJson);
 
-    return { agent, config: agentConfig };
+    return { agent, config: agentConfig, walletProvider };
   } catch (error) {
     console.error("Failed to initialize agent:", error);
     throw error;
@@ -455,10 +466,14 @@ async function handleProgressUpdate(
   try {
     const { txHash, newProgress } = await handler.updateProgress(userAddress, word);
     const isMastered = newProgress >= MASTERED_THRESHOLD;
-
-    await conversation.send(
-      `Great job! Your progress for "${word}" has been updated to level ${newProgress}/${MASTERED_THRESHOLD}. \n Transaction: ${txHash}`
-    );
+    if(isMastered){
+      await conversation.send(`🎉 Congratulations! You've mastered the word "${word}"! \n Transaction: ${txHash}`);
+    }
+    else{
+      await conversation.send(
+        `Great job! Your progress for "${word}" has been updated to level ${newProgress}/${MASTERED_THRESHOLD}. \n Type /quiz again to level up further. \n Transaction: ${txHash}`
+      );
+    }
     return { newProgress, isMastered };
   } catch (error) {
     console.error("Error updating progress:", error);
@@ -466,6 +481,20 @@ async function handleProgressUpdate(
       "Sorry, I couldn't update your progress. Please make sure you have an active goal and the word is correct."
     );
     return null;
+  }
+}
+
+// Update getUnlearnedWords to filter by difficulty
+async function getUnlearnedWords(userAddress: string, handler: LanguageLearningHandler, goalDifficulty: number): Promise<typeof VOCABULARY_WORDS> {
+  try {
+    const learnedWords = await handler.getVocabProgress(userAddress);
+    const learnedWordSet = new Set(learnedWords.map(w => w.word));
+    return VOCABULARY_WORDS.filter(word => 
+      !learnedWordSet.has(word.word) && word.difficulty == goalDifficulty
+    );
+  } catch (error) {
+    console.error('Error getting learned words:', error);
+    return VOCABULARY_WORDS.filter(word => word.difficulty == goalDifficulty);
   }
 }
 
@@ -490,7 +519,7 @@ async function handleMessage(message: DecodedMessage, client: Client) {
       `Received message from ${senderAddress}: ${message.content as string}`,
     );
 
-    const { agent, config } = await initializeAgent(senderAddress);
+    const { agent, config, walletProvider } = await initializeAgent(senderAddress);
     const handler = languageLearningHandlers[senderAddress];
 
     // Get the user's address from their inbox ID
@@ -508,6 +537,8 @@ async function handleMessage(message: DecodedMessage, client: Client) {
         `Could not find conversation for ID: ${message.conversationId}`,
       );
     }
+
+    console.log(message.conversationId)
     conversation = foundConversation as Conversation;
 
     // Check if the message is a command
@@ -534,11 +565,11 @@ async function handleMessage(message: DecodedMessage, client: Client) {
       return;
     }
 
-    if (content.startsWith("/goal")) {
+    if (content.startsWith("/checkgoal")) {
       try {
         const goalId = await handler.getActiveGoalId(userAddress);
         if (goalId === 0n) {
-          await conversation.send("You don't have an active goal. Use /create to start a new goal!");
+          await conversation.send("You don't have an active goal. Use /goal <description> to start a new goal!");
           return;
         }
 
@@ -566,6 +597,7 @@ async function handleMessage(message: DecodedMessage, client: Client) {
     }
 
     if (content.startsWith("/learn")) {
+      const [_, word] = content.split(" ");
       const activeGoalId = await handler.getActiveGoalId(userAddress);
       if (activeGoalId === 0n) {
         await conversation.send("You don't have an active goal. Please create one first!");
@@ -584,18 +616,50 @@ async function handleMessage(message: DecodedMessage, client: Client) {
         }
       }
 
-      // Select a random word
-      const randomWord = VOCABULARY_WORDS[Math.floor(Math.random() * VOCABULARY_WORDS.length)];
+      // If a specific word is provided
+      if (word) {
+        const wordInfo = VOCABULARY_WORDS.find(w => w.word.toLowerCase() === word.toLowerCase());
+        if (!wordInfo) {
+          await conversation.send(`Word "${word}" not found in vocabulary. Available words: ${VOCABULARY_WORDS.map(w => w.word).join(", ")}`);
+          return;
+        }
+        
+        // Initialize quiz state with the specified word
+        quizStates[senderAddress] = {
+          currentWord: wordInfo.word,
+          attempts: 0,
+          correctAnswers: 0,
+          start: false // Quiz not started yet, just learning
+        };
+
+        await conversation.send(
+          `Let's learn the word "${wordInfo.word}"!\n\nDefinition: ${wordInfo.meaning}\n\nType /quiz to start the quiz or /skip to try another word.`
+        );
+        return;
+      }
+
+      // If no word specified, select a random unlearned word
+      const goalInfo = await handler.getGoalInfo(activeGoalId);
+      const unlearnedWords = await getUnlearnedWords(userAddress, handler, Number(goalInfo.difficulty));
+      
+      if (unlearnedWords.length === 0) {
+        await conversation.send("Congratulations! You've learned all the available words. We'll add more words soon!");
+        return;
+      }
+
+      const randomIndex = Math.floor(Math.random() * unlearnedWords.length);
+      const selectedWord = unlearnedWords[randomIndex];
       
       // Initialize quiz state
       quizStates[senderAddress] = {
-        currentWord: randomWord.word,
+        currentWord: selectedWord.word,
         attempts: 0,
         correctAnswers: 0,
+        start: false // Quiz not started yet, just learning
       };
 
       await conversation.send(
-        `Let's learn the word "${randomWord.word}"!\n\nDefinition: ${randomWord.meaning}\n\nType /quiz to start the quiz or /skip to try another word.`
+        `Let's learn the word "${selectedWord.word}"!\n\nDefinition: ${selectedWord.meaning}\n\nType /quiz to start the quiz or /skip to try another word.`
       );
       return;
     }
@@ -607,9 +671,42 @@ async function handleMessage(message: DecodedMessage, client: Client) {
     }
 
     if (content.startsWith("/quiz")) {
-      if (!quizStates[senderAddress]) {
-        await conversation.send("You need to learn a word first! Type /learn to start.");
+      const [_, word] = content.split(" ");
+      
+      // Check wallet balance first
+      const smartWalletAddress = await walletProvider.getAddress();
+      const balance = await checkWalletBalance(smartWalletAddress);
+      const balanceInEth = parseFloat(balance);
+      console.log(balanceInEth,"balanceInEth")
+      if (balanceInEth < FUNDING_THRESHOLD) {
+        await conversation.send("To ensure bot can help track your progress on chain, you need to fund your bot wallet first! Type /botfund to fund your wallet.");
         return;
+      }
+
+      // If a specific word is provided
+      if (word) {
+        const wordInfo = VOCABULARY_WORDS.find(w => w.word.toLowerCase() === word.toLowerCase());
+        if (!wordInfo) {
+          await conversation.send(`Word "${word}" not found in vocabulary. Type /learn to see available words.`);
+          return;
+        }
+        
+        // Initialize quiz state with the specified word
+        quizStates[senderAddress] = {
+          currentWord: wordInfo.word,
+          attempts: 0,
+          correctAnswers: 0,
+          start: true // Starting quiz mode immediately
+        };
+      } else {
+        // If no word specified, check if there's an active quiz
+        if (!quizStates[senderAddress]) {
+          await conversation.send("You need to learn a word first! Type /learn to start or /quiz <word> to quiz on a specific word.");
+          return;
+        }
+        
+        // Set quiz mode to started
+        quizStates[senderAddress].start = true;
       }
 
       const { currentWord } = quizStates[senderAddress];
@@ -666,19 +763,99 @@ async function handleMessage(message: DecodedMessage, client: Client) {
       return;
     }
 
-    if (content.startsWith("/create")) {
-      const [_, targetVocab, durationDays, stake] = content.split(" ");
-      
-      if (!targetVocab || !durationDays || !stake) {
+    if (content.startsWith("/goal")) {
+      const parts = content.split(" ");
+      const isAISuggested = parts.length > 4 || (parts.length === 2 && !/^\d+$/.test(parts[1])); // Check if it's just "/create" or "/create" with text
+
+      if (isAISuggested) {
+        // Get the description from the message
+        const description = content.replace("/goal", "").trim();
+        if (!description) {
+          await conversation.send(
+            "Please provide a goal description or parameters:\n" +
+            "1. /goal <description> - I'll suggest parameters based on your goal\n" +
+            "2. /goal <target_vocab> <duration_days> <stake_in_eth> [difficulty] - Create goal with specific parameters"
+          );
+          return;
+        }
+        
+        // Use the agent to suggest goal parameters
+        const suggestionPrompt = `Based on this language learning goal description: "${description}"
+        Suggest appropriate parameters for:
+        1. Number of words to learn (targetVocab), if not specified suggest 10 words.
+        2. Duration in days, should be less than 30 days even if user ask for longer duration. If user did not specify duration, suggest based on targetVocab and how much time user can spend on learning.
+        3. Stake amount in ETH (considering difficulty and user preference)
+        4. Difficulty level (1-5)
+
+        Respond with a JSON object:
+        {
+          "targetVocab": number,
+          "durationDays": number,
+          "stake": string,
+          "difficulty": number,
+          "explanation": string
+        }`;
+
+        const suggestionResponse = await processMessage(agent, config, suggestionPrompt);
+        const suggestion = JSON.parse(suggestionResponse);
+
+        // Send the suggestion to the user
         await conversation.send(
-          "Please provide all required parameters: /create <target_vocab> <duration_days> <stake_in_eth>"
+          `Based on your goal, I suggest:\n` +
+          `- Target: ${suggestion.targetVocab} words\n` +
+          `- Duration: ${suggestion.durationDays} days\n` +
+          `- Stake: ${suggestion.stake} ETH\n` +
+          `- Difficulty: ${suggestion.difficulty}/5\n\n` +
+          `${suggestion.explanation}\n\n` +
+          `To create this goal, confirm the transaction below:\n` +
+          `/goal ${suggestion.targetVocab} ${suggestion.durationDays} ${suggestion.stake} ${suggestion.difficulty}`
+        );
+        await sendCreateGoalTransaction(
+          conversation,
+          userAddress,
+          suggestion.targetVocab,
+          ethers.parseEther(suggestion.stake),
+          suggestion.durationDays,
+          suggestion.stake,
+          suggestion.difficulty
         );
         return;
       }
 
-      const stakeAmount = ethers.parseEther(stake); // Convert to wei
+      // Handle manual input
+      const [_, targetVocab, durationDays, stake, difficulty] = parts;
+      
+      if (!targetVocab || !durationDays || !stake) {
+        await conversation.send(
+          "Please provide all required parameters: /goal <target_vocab> <duration_days> <stake_in_eth> [difficulty]\n" +
+          "Or just describe your goal and I'll suggest parameters: /goal <description>"
+        );
+        return;
+      }
+
+      // Check for active goal first
+      const activeGoalId = await handler.getActiveGoalId(userAddress);
+      if (activeGoalId !== 0n) {
+        const goalInfo = await handler.getGoalInfo(activeGoalId);
+        const endDate = new Date(Number(goalInfo.deadline) * 1000);
+        const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
+        
+        await conversation.send(
+          `You already have an active goal!\n\n` +
+          `Current Goal:\n` +
+          `- Target: ${goalInfo.targetVocab} words\n` +
+          `- Progress: ${goalInfo.learnedCount}/${goalInfo.targetVocab} words\n` +
+          `- Days left: ${daysLeft}\n` +
+          `- Stake: ${ethers.formatEther(goalInfo.stake)} ETH\n\n` +
+          `Please complete your current goal before creating a new one.`
+        );
+        return;
+      }
+
+      const stakeAmount = ethers.parseEther(stake);
       const targetVocabNum = parseInt(targetVocab);
       const durationDaysNum = parseInt(durationDays);
+      const difficultyNum = difficulty ? parseInt(difficulty) : 1;
 
       await sendCreateGoalTransaction(
         conversation,
@@ -686,13 +863,85 @@ async function handleMessage(message: DecodedMessage, client: Client) {
         targetVocabNum,
         stakeAmount,
         durationDaysNum,
-        stake // Pass the original ETH amount string
+        stake,
+        difficultyNum
       );
       return;
     }
 
+    if (content.startsWith("/botfund")) {
+      try {
+        const smartWalletAddress = await walletProvider.getAddress();
+        const balance = await checkWalletBalance(smartWalletAddress);
+        const balanceInEth = parseFloat(balance);
+        
+        await conversation.send(
+          `💰 Smart Wallet Balance:\nAddress: ${smartWalletAddress}\nBalance: ${balance} ETH`
+        );
+
+        if (balanceInEth < FUNDING_THRESHOLD) {
+          await requestFundTransaction(
+            conversation,
+            userAddress,
+            smartWalletAddress,
+            ethers.parseEther("0.0005")
+          );
+        }
+      } catch (error) {
+        console.error("Error checking wallet balance:", error);
+        await conversation.send("Sorry, I couldn't check your wallet balance. Please try again later.");
+      }
+      return;
+    }
+
+    if (content.startsWith("/claim")) {
+      try {
+        const activeGoalId = await handler.getActiveGoalId(userAddress);
+        if (activeGoalId === 0n) {
+          await conversation.send("You don't have an active goal to claim. Create a goal first using /goal <description> command!");
+          return;
+        }
+
+        const goalInfo = await handler.getGoalInfo(activeGoalId);
+        const endDate = new Date(Number(goalInfo.deadline) * 1000);
+        const now = new Date();
+        const isDeadlinePassed = now >= endDate;
+        const isGoalCompleted = goalInfo.learnedCount >= goalInfo.targetVocab;
+
+        // Check if already claimed
+        if (goalInfo.claimed) {
+          await conversation.send("You have already claimed the stake for this goal!");
+          return;
+        }
+
+        // Check if either condition is met
+        if (!isGoalCompleted && !isDeadlinePassed) {
+          const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+          await conversation.send(
+            `Your goal is not ready to claim yet!\n` +
+            `Progress: ${goalInfo.learnedCount}/${goalInfo.targetVocab} words\n` +
+            `Days left: ${daysLeft}\n\n` +
+            `You can claim your stake when either:\n` +
+            `1. You complete all ${goalInfo.targetVocab} words, or\n` +
+            `2. The deadline (${endDate.toLocaleDateString()}) has passed`
+          );
+          return;
+        }
+
+        // Create and send the claim transaction
+        const walletSendCalls = await handler.createClaimStakeCalls(activeGoalId.toString());
+        console.log(walletSendCalls,"walletSendCalls")
+        await conversation.send(walletSendCalls, ContentTypeWalletSendCalls);
+        
+      } catch (error) {
+        console.error("Error claiming stake:", error);
+        await conversation.send("Sorry, I couldn't process your claim request. Please try again later.");
+      }
+      return;
+    }
+
     // Handle quiz answers only if a quiz is active
-    if (quizStates[senderAddress]) {
+    if (quizStates[senderAddress] && quizStates[senderAddress].start) {
       const { currentWord, multipleChoiceQuiz } = quizStates[senderAddress];
       const wordInfo = VOCABULARY_WORDS.find(w => w.word === currentWord);
       if (!wordInfo) {
@@ -731,14 +980,15 @@ async function handleMessage(message: DecodedMessage, client: Client) {
 
       if (evaluation.isCorrect) {
         // Call handleProgressUpdate and check if the word was mastered
+        quizStates[senderAddress].start = false;
         const updateResult = await handleProgressUpdate(conversation, handler, userAddress, currentWord);
         if (updateResult && updateResult.isMastered) {
-          await conversation.send(`🎉 Congratulations! You've mastered the word "${currentWord}"!`);
+  
           delete quizStates[senderAddress]; // Only delete if mastered
         }
       } else {
         await conversation.send(
-          `${evaluation.feedback}\n\n${evaluation.explanation}\n\nTry again or type /skip to try another word.`
+          `${evaluation.feedback}\n\n${evaluation.explanation}\n\nTry again or type /skip to return exit quiz mode to talk to the agent.`
         );
       }
       return;
@@ -861,7 +1111,8 @@ async function sendCreateGoalTransaction(
   targetVocab: number,
   stake: bigint,
   durationDays: number,
-  stakeEth: string // Original ETH amount
+  stakeEth: string, // Original ETH amount
+  difficulty: number = 1 // Default difficulty to 1 if not specified
 ) {
   const walletSendCalls: WalletSendCallsParams = {
     version: "1.0",
@@ -885,13 +1136,49 @@ async function sendCreateGoalTransaction(
             },
           ],
           functionName: "createGoal",
-          args: [BigInt(targetVocab), BigInt(durationDays), 1],
+          args: [BigInt(targetVocab), BigInt(durationDays), difficulty],
         }),
         value: toHex(BigInt(stake)),
         metadata: {
-          description: `Create a language learning goal: ${targetVocab} words in ${durationDays} days with ${stakeEth} ETH stake`,
+          description: `Create a language learning goal: ${targetVocab} words in ${durationDays} days with ${stakeEth} ETH stake (Difficulty: ${difficulty}/5)`,
           transactionType: "create_goal",
-          stake: stakeEth, // Use original ETH amount
+          stake: stakeEth,
+          networkId: currentNetwork.networkId,
+          networkName: currentNetwork.networkName,
+        },
+      },
+    ],
+  };
+
+  await conversation.send(walletSendCalls, ContentTypeWalletSendCalls);
+}
+
+/**
+ * Request a fund transaction to send ETH to a wallet
+ * @param conversation - The XMTP conversation
+ * @param fromAddress - The sender's address
+ * @param toWallet - The recipient's wallet address
+ * @param fund - The amount to send in wei
+ */
+async function requestFundTransaction(
+  conversation: Conversation,
+  fromAddress: string,
+  toWallet: string,
+  fund: bigint
+) {
+  const walletSendCalls: WalletSendCallsParams = {
+    version: "1.0",
+    from: fromAddress as `0x${string}`,
+    chainId: currentNetwork.chainId,
+    calls: [
+      {
+        to: toWallet as `0x${string}`,
+        data: "0x", // Empty data for simple ETH transfer
+        value: toHex(fund),
+        metadata: {
+          description: `Fund Bot Wallet:${toWallet} with some gas (${ethers.formatEther(fund)} ETH) `,
+          transactionType: "send_eth",
+          amount: ethers.formatEther(fund),
           networkId: currentNetwork.networkId,
           networkName: currentNetwork.networkName,
         },
