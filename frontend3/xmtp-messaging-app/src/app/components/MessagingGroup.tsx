@@ -7,7 +7,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { ethers } from 'ethers';
 import { MessageList } from './MessageList';
 import { useWalletClient } from 'wagmi';
-import styles from './Messaging.module.css';
+import styles from './MessagingGroup.module.css';
 import { getBasename, Basename } from './basenames';
 export const MessagingGroup: React.FC = () => {
   const [message, setMessage] = useState('');
@@ -113,11 +113,15 @@ export const MessagingGroup: React.FC = () => {
       <div className={styles.messageListContainer}>
         {isInitialized ? (
           <>
-            <label htmlFor="group-select">Select Group:</label>
+
+            <div className={styles.groupActions}>
+                <div>
+            <label htmlFor="group-select" className={styles.groupSelectorLabel}>Select Group:</label>
             <select
               id="group-select"
               value={selectedGroupId}
               onChange={e => setSelectedGroupId(e.target.value)}
+              className={styles.groupSelectorSelect}
             >
               {groups.map(group => (
                 <option key={group.id} value={group.id}>
@@ -125,31 +129,54 @@ export const MessagingGroup: React.FC = () => {
                 </option>
               ))}
             </select>
+            </div>
             <div>
               <input
                 type="text"
                 placeholder="Comma-separated addresses"
                 value={newGroupAddresses}
                 onChange={e => setNewGroupAddresses(e.target.value)}
-                style={{ width: '300px', marginRight: '8px' }}
+                className={styles.groupCreationInput}
               />
-              <button onClick={handleCreateGroup} disabled={creating || !newGroupAddresses}>
+              <button
+                onClick={handleCreateGroup}
+                disabled={creating || !newGroupAddresses}
+                className={styles.groupCreationButton}
+              >
                 {creating ? "Creating..." : "Create Group Chat"}
               </button>
-            </div>
-            <div>
-                <strong>Group Members:</strong>
-                <ul>
-                  {groupMembers.map((addr, idx) => (
-                    <li key={idx}>
-                      {basenames[addr]
-                        ? `${basenames[addr]} (${addr.slice(0, 6)}...${addr.slice(-4)})`
-                        : `${addr.slice(0, 6)}...${addr.slice(-4)}`}
-                    </li>
-                  ))}
-                </ul>
               </div>
-            <MessageList target_conversationId={selectedGroupId} walletClient={walletClient} />
+            </div>
+            <div className={styles.groupMainRow}>
+                <div className={styles.groupMembers}>
+                    <strong>Group Members:</strong>
+                    <ul className={styles.groupMembersList}>
+                    {groupMembers.map((addr, idx) => (
+                        <li key={idx} className={styles.groupMemberItem}>
+                        {basenames[addr]
+                            ? `${basenames[addr]} (${addr.slice(0, 6)}...${addr.slice(-4)})`
+                            : `${addr.slice(0, 6)}...${addr.slice(-4)}`}
+                        </li>
+                    ))}
+                    </ul>
+                </div>
+                <div className={styles.messageGroupDonNotSeperate}>
+                        <MessageList target_conversationId={selectedGroupId} walletClient={walletClient} />
+                        <div className={styles.messageForm}>
+                            <textarea
+                            id="message"
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            className={styles.textarea}
+                            placeholder="Type your message here..."
+                            />
+                            <button type="submit" onClick={handleSubmit} className={styles.submitButton}>
+                            Send
+                            </button>
+                        </div>
+                </div>
+            </div>
           </>
         ) : (
           <div className={styles.messageContainer}>
@@ -161,19 +188,7 @@ export const MessagingGroup: React.FC = () => {
         )}
       </div>
 
-      <div className={styles.messageForm}>
-        <textarea
-          id="message"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className={styles.textarea}
-          placeholder="Type your message here..."
-        />
-        <button type="submit" onClick={handleSubmit} className={styles.submitButton}>
-          Send
-        </button>
-      </div>
+    
     </div>
   );
 }; 

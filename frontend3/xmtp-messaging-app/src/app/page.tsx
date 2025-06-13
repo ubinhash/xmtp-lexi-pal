@@ -31,9 +31,9 @@ export default function Home() {
                 <Link href="/learn" className={styles.primaryButton}>
                   Start Learning
                 </Link>
-                {/* <Link href="/group" className={styles.secondaryButton}>
-                  Group Quiz
-                </Link> */}
+                <Link href="/group" className={styles.secondaryButton}>
+                  Study Groups
+                </Link>
               </div>
             </div>
             <div className={styles.imageContainer}>
