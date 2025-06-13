@@ -146,6 +146,7 @@ export function MessageList({ target_conversationId }: MessageListProps) {
         const allMessages: Message[] = [];
         
         for (const conversation of conversations) {
+          console.log("conversation",conversation)
           if (conversation.id !== target_conversationId) continue;
 
           try {

@@ -100,7 +100,7 @@ interface QuizEvaluation {
 }
 
 const MASTERED_THRESHOLD = 3; // Define the mastered threshold
-const FUNDING_THRESHOLD = 0.0005; // Define the minimum balance threshold in ETH
+const FUNDING_THRESHOLD = 0.00005; // Define the minimum balance threshold in ETH
 
 interface MultipleChoiceQuiz {
   word: string;
@@ -861,7 +861,7 @@ async function handleMessage(message: DecodedMessage, client: Client) {
       const stakeAmount = ethers.parseEther(stake);
       const targetVocabNum = parseInt(targetVocab);
       const durationDaysNum = parseInt(durationDays);
-      const difficultyNum = difficulty ? parseInt(difficulty) : 1;
+      const difficultyNum = difficulty ? Math.min(Math.max(parseInt(difficulty), 1), 5) : 1;
 
       await sendCreateGoalTransaction(
         conversation,
@@ -890,7 +890,7 @@ async function handleMessage(message: DecodedMessage, client: Client) {
             conversation,
             userAddress,
             smartWalletAddress,
-            ethers.parseEther("0.0005")
+            ethers.parseEther("0.0001")
           );
         }
       } catch (error) {

@@ -4,8 +4,7 @@ import { useAccount, useContractRead } from 'wagmi';
 import { BigNumber, utils as ethersUtils } from 'ethers';
 import GoalAbi from './GoalAbi.json';
 import styles from './GoalSummary.module.css';
-
-const CONTRACT_ADDRESS = '0x0655266c179D0111398A3858904b62910567a5eB'; // Replace with your contract address
+import { CONTRACT_ADDRESS } from '../config/contract';
 
 function formatCountdown(deadline: string | number): string {
   const now = Math.floor(Date.now() / 1000);

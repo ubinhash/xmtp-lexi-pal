@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import styles from './VocabProgress.module.css';
 import { useAccount } from 'wagmi';
 import { VOCABULARY_WORDS } from './vocabulary';
+import { GRAPH_API_URL } from '../config/contract';
 
 interface VocabLearned {
   word: string;
@@ -32,7 +33,7 @@ export const VocabProgress: React.FC = () => {
     if (!address) return;
     
     try {
-      const response = await fetch('https://api.studio.thegraph.com/query/111655/base-xmtp-lexipal/version/latest', {
+      const response = await fetch(GRAPH_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -74,7 +75,7 @@ export const VocabProgress: React.FC = () => {
       // First, get the goal difficulty
       await fetchGoalDifficulty();
       
-      const response = await fetch('https://api.studio.thegraph.com/query/111655/base-xmtp-lexipal/version/latest', {
+      const response = await fetch(GRAPH_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

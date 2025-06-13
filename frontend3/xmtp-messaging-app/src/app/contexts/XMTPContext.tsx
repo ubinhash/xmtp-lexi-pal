@@ -17,6 +17,9 @@ interface XMTPContextType {
   streamMessages: (callback: (message: any) => void) => Promise<void>;
   findConversationWithAddress: () => Promise<string | null>;
   createDM: () => Promise<any>;
+  sendMessageGroup: (content: string, conversationId: string) => Promise<void>;
+  listGroupChats: () => Promise<any>;
+  createGroupchat: (addresses: string[]) => Promise<any>;
 }
 
 const XMTPContext = createContext<XMTPContextType | null>(null);
@@ -298,11 +301,92 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const recipientAddress = ethers.utils.getAddress(XMTP_CONFIG.defaultRecipient);
-      const conversation = await client.conversations.newDm(recipientAddress);
+      const recipientIdentity = {
+        identifier: recipientAddress,
+        identifierKind: 'Ethereum' as const
+      };
+      const recipientInboxId = await client.findInboxIdByIdentifier(recipientIdentity);
+      if (!recipientInboxId) {
+        throw new Error('Could not find recipient inbox ID');
+      }
+      
+      const conversation = await client.conversations.newDm(recipientInboxId);
       console.log('Created new DM conversation:', conversation);
       return conversation;
     } catch (error) {
       console.error('Error creating DM:', error);
+      throw error;
+    }
+  };
+ 
+  const createGroupchat = async (addresses: string[]): Promise<any> => {
+    if (!client) {
+      throw new Error('XMTP client not initialized');
+    }
+    if(!address){
+      throw new Error('Could not find my address');
+     }
+
+    try {
+      // Convert all addresses to normalized format
+      const normalizedAddresses = addresses.map(addr => ethers.utils.getAddress(addr));
+      normalizedAddresses.push(XMTP_CONFIG.defaultGroupRecipient);
+      normalizedAddresses.push(address);
+      // Create identity objects for each address
+      const identities = normalizedAddresses.map(address => ({
+        identifier: address,
+        identifierKind: 'Ethereum' as const
+      }));
+
+      // Get inbox IDs for all participants
+      const inboxIds = await Promise.all(
+        identities.map(async (identity) => {
+          const inboxId = await client.findInboxIdByIdentifier(identity);
+          if (!inboxId) {
+            throw new Error(`Could not find inbox ID for address ${identity.identifier}`);
+          }
+          return inboxId;
+        })
+      );
+
+      // Create new group conversation with all participants
+      const conversation = await client.conversations.newGroup(inboxIds);
+      console.log('Created new group conversation:', conversation);
+      return conversation;
+    } catch (error) {
+      console.error('Error creating group chat:', error);
+      throw error;
+    }
+  };
+
+  const listGroupChats = async (): Promise<any> => {
+  
+    if (!client) {
+      throw new Error('XMTP client not initialized');
+    }
+    try { 
+      const conversations = await client.conversations.listGroups();
+      console.log("group chats",conversations)
+      return conversations;
+    } catch (error) {
+      console.error('Error listing group chats:', error);
+      throw error;
+    }
+  };
+
+  const sendMessageGroup = async (content: string, conversationId: string) => {
+    if (!client) {
+      throw new Error('XMTP client not initialized');
+    }
+    try {
+    const conversation = await client.conversations.getConversationById(conversationId); 
+    if (!conversation) {
+      throw new Error('Conversation not found');
+    } 
+    const msgid = await conversation.send(content);
+    console.log("content sent", msgid);
+    } catch (error) {
+      console.error('Error sending message:', error);
       throw error;
     }
   };
@@ -318,7 +402,10 @@ export const XMTPProvider: React.FC<{ children: React.ReactNode }> = ({ children
         disconnect:disconnectXMTP,
         streamMessages,
         findConversationWithAddress,
-        createDM
+        createDM,
+        listGroupChats,
+        createGroupchat,
+        sendMessageGroup,
       }}
     >
       {children}

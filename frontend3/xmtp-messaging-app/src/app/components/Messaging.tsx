@@ -150,11 +150,11 @@ export const Messaging: React.FC = () => {
         Create DM
       </button> */}
 
-      {error && (
+      {/* {error && (
         <div className={styles.errorMessage}>
           {error}
         </div>
-      )}
+      )} */}
 
     
     </div>
