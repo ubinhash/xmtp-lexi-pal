@@ -760,15 +760,15 @@ async function handleMessage(message: DecodedMessage, client: Client) {
       return;
     }
 
-    if (content.startsWith("/update")) {
-      const word = content.split(" ")[1];
-      if (!word) {
-        await conversation.send("Please specify a word to update progress for. Usage: /update <word>");
-        return;
-      }
-      await handleProgressUpdate(conversation, handler, userAddress, word);
-      return;
-    }
+    // if (content.startsWith("/update")) {
+    //   const word = content.split(" ")[1];
+    //   if (!word) {
+    //     await conversation.send("Please specify a word to update progress for. Usage: /update <word>");
+    //     return;
+    //   }
+    //   await handleProgressUpdate(conversation, handler, userAddress, word);
+    //   return;
+    // }
 
     if (content.startsWith("/goal")) {
       const parts = content.split(" ");
