@@ -69,7 +69,7 @@ Group Chat Agent XMTP Address (under development):0x55fdc82920507ed1694a79b19c10
 
 ## Architecture Diagram
 
-![Architecture Diagram](assets/screenshot/arch.png)
+![Architecture Diagram](https://github.com/ubinhash/xmtp-lexi-pal/blob/main/assets/screenshots/arch.png)
 
 ## Frontend
 
