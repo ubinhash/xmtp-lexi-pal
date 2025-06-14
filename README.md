@@ -54,6 +54,9 @@ Coinbase Agent Kit Integration: Each conversation has a dedicated CDP wallet —
 Extensible architecture: The system is designed to allow future expansions (new languages, richer quiz types, group goal tracking, leaderboard features).
 
 
+![UI 2](https://github.com/ubinhash/xmtp-lexi-pal/blob/main/assets/screenshots/learn.png)
+
+
 # Deployment Info
 
 Website: https://xmtp-lexi-pal.vercel.app/ (Live On Base Mainnet)
@@ -115,6 +118,22 @@ export const GRAPH_API_URL = <Your Subgraph Deployment URL HERE>
 
 Individual learning agent: code in `xmtp-agent-examples/examples/xmtp-coinbase-agentkit` folder
 Group chat agent: code in `xmtp-agent-examples/examples/xmtp-coinbase-group` folder
+
+### 💬 Available Commands
+
+Here are some available commands you can use with the agent:
+
+| Command                                               | Description |
+|--------------------------------------------------------|-------------|
+| `/goal <description>`                                  | Create a learning goal using natural language. The AI will suggest vocab count, duration, stake, and difficulty. |
+| `/goal <target_vocab> <duration_days> <stake_eth> [difficulty]` | Create a goal with explicit parameters. |
+| `/checkgoal`                                           | View your current active goal and its progress. |
+| `/learn [word]`                                        | Start learning a word. If not specified, one will be selected for you. |
+| `/quiz [word]`                                         | Start a quiz for the current or a specific word, depending on your progress level. |
+| `/progress <word>`                                     | Check your learning progress for a specific word. |
+| `/skip`                                                | Exit quiz mode and return to agent mode. |
+| `/claim`                                               | Claim your stake if your goal is completed or expired. |
+| `/botfund`                                             | Check your smart wallet balance and request ETH gas if it’s low. |
 
 
 ### Configuration
