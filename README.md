@@ -35,6 +35,22 @@ Leaners can also create a study group through our site — an XMTP group chat wh
 
 A potential use case: parents can stake ETH and set up a learning goal for their child , this will help helping **onboard younger generations on-chain**, giving them a fun and structured way to earn rewards through real effort.
 
+## Features
+
+On-chain accountability: Learning progress is verified and enforced through on-chain state, updated only by the AI agent.
+
+Dynamic AI quiz flow: The agent provides dynamic quizzes with free-form and ai generated quiz components — preventing simple gaming of the system.
+
+Staking-based incentives: Learners stake ETH and can reclaim it only after demonstrating mastery — adding real financial motivation.
+
+Transparent reward pool: Partial refunds from failed goals fund a public reward pool for community learning incentives.
+
+Study group support: Users can create group chats with an auto-invited group agent for collaborative learning (early version).
+
+Coinbase Agent Kit Integration: Each conversation has a dedicated CDP wallet — ensuring fine-grained control and security over on-chain updates.
+
+Extensible architecture: The system is designed to allow future expansions (new languages, richer quiz types, group goal tracking, leaderboard features).
+
 
 # Deployment Info
 
