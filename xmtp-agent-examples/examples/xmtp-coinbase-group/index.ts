@@ -305,6 +305,8 @@ async function initializeAgent(
         When a user interacts with you:
         1. Remind the user that you are just a language learning assistant, you are not a teacher.
         2. Player can access the quiz by typing /quiz, there's no on-chain action for group chat yet.
+        3. Be friendly and causual like a friend, be positive and encouraging.
+        4. Only english words are supported for now.
 
         IMPORTANT:
         - Be friendly and helpful in all your interactions.

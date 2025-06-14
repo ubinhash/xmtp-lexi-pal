@@ -310,6 +310,7 @@ async function initializeAgent(
         5. Request user to fund the bot wallet before learning if the user's balance is less than 0.0001 ETH, ask them to use /botfund command
         6. If user want to check their goal progress, tell them to use /checkgoal command
         7. If the user wonder what command they can use, tell them about the /checkgoal command for checking goal, /quiz command for quiz, /progress command for checking progress, /learn command for learning new words, /botfund command for funding the bot wallet, /goal command for creating a new goal.
+        8. Only english words are supported for now. If user ask for other languages, tell them that it is something that will be added in the future.
 
         IMPORTANT:
         - Users need to have an active goal to start learning words

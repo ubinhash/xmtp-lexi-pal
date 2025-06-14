@@ -65,6 +65,16 @@ export const MessagingGroup: React.FC = () => {
   }, [selectedGroupId, groups]);
 
   useEffect(() => {
+    console.log("groupMembers Changed",groupMembers)
+    groupMembers.forEach(async (address) => {
+        if (!basenames[address]) {
+          const basename = await getBasename(address);
+          setBasenames(prev => ({ ...prev, [address]: basename }));
+        }
+      });
+  }, [groupMembers])
+
+  useEffect(() => {
     const fetchGroups = async () => {
       const groupList = await listGroupChats();
       setGroups(groupList);
@@ -116,21 +126,21 @@ export const MessagingGroup: React.FC = () => {
 
             <div className={styles.groupActions}>
                 <div>
-            <label htmlFor="group-select" className={styles.groupSelectorLabel}>Select Group:</label>
-            <select
-              id="group-select"
-              value={selectedGroupId}
-              onChange={e => setSelectedGroupId(e.target.value)}
-              className={styles.groupSelectorSelect}
-            >
-              {groups.map(group => (
-                <option key={group.id} value={group.id}>
-                  {group.name || group.id}
-                </option>
-              ))}
-            </select>
-            </div>
-            <div>
+                    <label htmlFor="group-select" className={styles.groupSelectorLabel}>Select Group:</label>
+                    <select
+                    id="group-select"
+                    value={selectedGroupId}
+                    onChange={e => setSelectedGroupId(e.target.value)}
+                    className={styles.groupSelectorSelect}
+                    >
+                    {groups.map(group => (
+                        <option key={group.id} value={group.id}>
+                        {group.name || group.id}
+                        </option>
+                    ))}
+                    </select>
+                </div>
+            <div className={styles.groupCreationInputContainer}>
               <input
                 type="text"
                 placeholder="Comma-separated addresses"
@@ -145,7 +155,7 @@ export const MessagingGroup: React.FC = () => {
               >
                 {creating ? "Creating..." : "Create Group Chat"}
               </button>
-              </div>
+            </div>
             </div>
             <div className={styles.groupMainRow}>
                 <div className={styles.groupMembers}>
