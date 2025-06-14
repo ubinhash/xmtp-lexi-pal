@@ -1,7 +1,9 @@
 
-XMTP LexiPal -- Your on-chain AI agent language coach
+# XMTP LexiPal -- Your on-chain AI agent language coach
 
 # Project Overview 
+
+![UI Diagram](https://github.com/ubinhash/xmtp-lexi-pal/blob/main/assets/screenshots/frontpage-thin.png)
 
 ## The Problem
 
