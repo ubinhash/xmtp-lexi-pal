@@ -1,9 +1,10 @@
 
 # XMTP LexiPal -- Your on-chain AI agent language coach
 
+![UI Diagram](https://github.com/ubinhash/xmtp-lexi-pal/blob/main/assets/screenshots/frontpage-thin.png)
+
 # Project Overview 
 
-![UI Diagram](https://github.com/ubinhash/xmtp-lexi-pal/blob/main/assets/screenshots/frontpage-thin.png)
 
 ## The Problem
 
@@ -35,7 +36,6 @@ If you **complete your goal**, you can claim your full stake back. If you fail, 
 
 Leaners can also create a study group through our site — an XMTP group chat where a special group learning agent is auto-invited to make the learning experience more fun. The group agent is a separate agent and is still under development, and for now there is no on-chain component in the group chat, but it allows learners to engage together and stay motivated.
 
-A potential use case: parents can stake ETH and set up a learning goal for their child , this will help helping **onboard younger generations on-chain**, giving them a fun and structured way to earn rewards through real effort.
 
 ## Features
 
@@ -60,9 +60,9 @@ Website: https://xmtp-lexi-pal.vercel.app/ (Live On Base Mainnet)
 
 LanguageGoal Contract: https://basescan.org/address/0x4Ac4525e441A034aD0D0Fe48A03AD4F95Fe9daF8
 
-Individual Learning Agent XMTP Address: 0x0205918b99875a7b5ae7d3060f0ad4d9afcc4c4b
+Individual Learning Agent XMTP Address: `0x0205918b99875a7b5ae7d3060f0ad4d9afcc4c4b`
 
-Group Chat Agent XMTP Address (under development):0x55fdc82920507ed1694a79b19c1025e7f12efac4 
+Group Chat Agent XMTP Address (under development):`0x55fdc82920507ed1694a79b19c1025e7f12efac4` 
 
 
 ## Tech Stack & Tools
@@ -152,4 +152,11 @@ Deploy: `npx hardhat run scripts/deploy.js --network base`
 - XMTP Group Chat integration
 - Built with Security in Mind: Logic checks are performed before handing off data to the agent.
 
+## Potential Real life Use case
+
+- Parents can stake ETH and set up a learning goal for their child , this will help helping **onboard younger generations on-chain**, giving them a fun and structured way to earn rewards through real effort.
+
+- Learners can use it as a personal goal-setting tool — putting ETH at stake for their own vocab goals and letting the AI agent hold them accountable.
+
+- Language teachers or tutors can set up private group chats with their students and integrate the AI agent as an additional practice tool.
 
